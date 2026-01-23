@@ -183,7 +183,10 @@ def get_text_from_upload(file_storage) -> str:
         return ""
 
     _, ext = os.path.splitext(filename.lower())
-    save_path = os.path.join(UPLOAD_DIR, f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}")
+    save_path = os.path.join(
+        UPLOAD_DIR,
+        f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
+    )
     file_storage.save(save_path)
 
     try:
@@ -216,7 +219,11 @@ def analisar():
 
         extraido = get_text_from_upload(arquivo)
         if not extraido:
-            flash("Não foi possível extrair texto do arquivo. Se for PDF escaneado, exporte para PDF pesquisável ou cole o texto manualmente.", "error")
+            flash(
+                "Não foi possível extrair texto do arquivo. "
+                "Se for PDF escaneado, exporte para PDF pesquisável ou cole o texto manualmente.",
+                "error"
+            )
             return redirect(url_for("home"))
 
         # Se também tiver texto colado, juntamos
