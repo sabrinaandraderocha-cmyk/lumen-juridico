@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Analisar • Lumen Jurídico{% endblock %}
+{% block content %}
+  <section class="hero">
+    <h1>Entenda o essencial de uma decisão</h1>
+    <p class="muted">
+      Cole ementa, voto ou trecho do acórdão. O Lumen organiza em: pergunta jurídica, tese, fundamentos e aplicação prática.
+      (Funciona offline — sem IA externa.)
+    </p>
+  </section>
+
+  <section class="card">
+    <form method="post" action="{{ url_for('analisar') }}">
+      <label for="texto">Texto da decisão</label>
+      <textarea id="texto" name="texto" rows="14" placeholder="Cole aqui o texto (ementa, voto, etc.)..."></textarea>
+
+      <div class="row">
+        <button class="btn" type="submit">Analisar</button>
+        <a class="btn secondary" href="{{ url_for('biblioteca') }}">Abrir Biblioteca</a>
+      </div>
+
+      <p class="hint">
+        Dica: se você colar apenas a ementa já funciona bem. Se colar o voto, o app tenta localizar citações legais (artigos/leis).
+      </p>
+    </form>
+  </section>
+{% endblock %}

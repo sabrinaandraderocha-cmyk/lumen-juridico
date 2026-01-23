@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Resultado • Lumen Jurídico{% endblock %}
+{% block content %}
+  <section class="hero">
+    <h1>Leitura estruturada</h1>
+    <p class="muted">Gerado em {{ now.strftime("%d/%m/%Y %H:%M") }} • revise e ajuste (o app é um “primeiro rascunho”).</p>
+  </section>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>Pergunta jurídica</h2>
+      <p>{{ out.pergunta }}</p>
+    </div>
+
+    <div class="card">
+      <h2>Tese (ratio / núcleo decisório)</h2>
+      <p>{{ out.tese }}</p>
+    </div>
+
+    <div class="card">
+      <h2>Fundamentos (referências detectadas)</h2>
+      <ul>
+        {% for f in out.fundamentos %}
+          <li>{{ f }}</li>
+        {% endfor %}
+      </ul>
+      <p class="hint">Se faltou algo, é normal: algumas decisões citam leis de formas muito variadas.</p>
+    </div>
+
+    <div class="card">
+      <h2>Como isso cai na prática/estudo</h2>
+      <p>{{ out.aplicacao }}</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Ementa / trecho-base</h2>
+    <pre class="pre">{{ out.ementa }}</pre>
+  </section>
+
+  <section class="card">
+    <h2>Texto original (o que você colou)</h2>
+    <details>
+      <summary>Ver/ocultar</summary>
+      <pre class="pre">{{ texto }}</pre>
+    </details>
+  </section>
+
+  <div class="row">
+    <a class="btn" href="{{ url_for('home') }}">Nova análise</a>
+    <a class="btn secondary" href="{{ url_for('biblioteca') }}">Biblioteca</a>
+  </div>
+{% endblock %}

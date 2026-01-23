@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Biblioteca • Lumen Jurídico{% endblock %}
+{% block content %}
+  <section class="hero">
+    <h1>Biblioteca rápida</h1>
+    <p class="muted">
+      Atalhos oficiais do Planalto. Quando não houver PDF consolidado,
+      utilize o texto compilado oficial em HTML.
+    </p>
+  </section>
+
+  <section class="card">
+    <ul class="links">
+      {# remove o primeiro e o último link #}
+      {% for item in links[1:-1] %}
+        <li>
+          <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">
+            {{ item.titulo }}
+          </a>
+          <span class="pill">{{ item.tipo }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+
+    <div class="note">
+      <strong>Observação:</strong>
+      o Planalto nem sempre publica um <em>PDF consolidado</em> dos códigos
+      (com todas as alterações).  
+      Quando isso não existir, o melhor “oficial” costuma ser o
+      <strong>texto compilado em HTML</strong>.
+    </div>
+  </section>
+{% endblock %}

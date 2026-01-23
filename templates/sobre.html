@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Sobre • Lumen Jurídico{% endblock %}
+{% block content %}
+  <section class="hero">
+    <h1>Sobre o App</h1>
+    <p class="muted">
+      O Lumen Jurídico é um app local desenvolvido para auxiliar a leitura e compreensão
+      de decisões judiciais com mais clareza.
+      Ele <strong>não</strong> decide nada por você: apenas organiza o texto em blocos úteis.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>O que este app faz</h2>
+    <ul>
+      <li>Organiza uma decisão em: pergunta jurídica, tese, fundamentos e aplicação prática.</li>
+      <li>Identifica citações legais comuns (artigos, leis e siglas como CPC, CPP, CP e CLT).</li>
+      <li>Disponibiliza uma biblioteca com links oficiais da legislação federal (Planalto).</li>
+    </ul>
+
+    <h2>O que ele não faz (por enquanto)</h2>
+    <ul>
+      <li>Não realiza busca automática de processos.</li>
+      <li>Não substitui a análise jurídica humana: sempre revise o conteúdo.</li>
+      <li>Não utiliza IA externa: o processamento é local (maior privacidade).</li>
+    </ul>
+  </section>
+{% endblock %}

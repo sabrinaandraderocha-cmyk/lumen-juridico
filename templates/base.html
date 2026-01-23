@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Lumen Jurídico{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">
+        <!-- ÍCONE COM LIVRO + LUZ -->
+        <div class="logo"><span>LJ</span></div>
+
+        <div>
+          <div class="brand-name">Lumen Jurídico</div>
+          <div class="brand-tag">Clareza sobre decisões judiciais.</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="{{ url_for('home') }}">Analisar</a>
+        <a href="{{ url_for('biblioteca') }}">Biblioteca</a>
+        <a href="{{ url_for('sobre') }}">Sobre</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-wrap">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>© 2026 • Lumen Jurídico</div>
+      <div class="muted">
+        Ferramenta de apoio à leitura jurídica.
+        Não substitui estudo nem orientação profissional.
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
