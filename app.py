@@ -202,6 +202,9 @@ def get_text_from_upload(file_storage) -> str:
         except OSError:
             pass
 
+# =========================
+# Routes
+# =========================
 @app.get("/")
 def home():
     return render_template("index.html")
@@ -240,50 +243,26 @@ def analisar():
 def biblioteca():
     links = [
         {
-            "titulo": "Constituição Federal (publicação original no DOU) — PDF (Planalto)",
-            "url": "https://www.planalto.gov.br/ccivil_03/constituicao/DOUconstituicao88.pdf",
-            "tipo": "PDF (Planalto)"
+            "titulo": "Constituição Federal de 1988 (texto oficial compilado)",
+            "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
+            "tipo": "Constituição • Planalto"
         },
         {
-            "titulo": "Constituição Federal (texto compilado) — HTML (Planalto)",
-            "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicaocompilado.htm",
-            "tipo": "HTML (Planalto)"
+            "titulo": "Código de Defesa do Consumidor – Lei nº 8.078/1990 (texto compilado)",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
+            "tipo": "Legislação • Planalto"
         },
         {
-            "titulo": "Código Penal (texto compilado) — HTML (Planalto)",
-            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
-            "tipo": "HTML (Planalto)"
+            "titulo": "Livros Abertos – Direito (acesso aberto)",
+            "url": "https://www.livrosabertos.abcd.usp.br/portaldelivrosUSP/catalog/category/direito",
+            "tipo": "Livros acadêmicos • Acesso aberto"
         },
         {
-            "titulo": "Código de Processo Penal (texto compilado) — HTML (Planalto)",
-            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm",
-            "tipo": "HTML (Planalto)"
-        },
-        {
-            "titulo": "Código Civil (texto compilado) — HTML (Planalto)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",
-            "tipo": "HTML (Planalto)"
-        },
-        {
-            "titulo": "Código de Processo Civil (Lei 13.105/2015) — HTML (Planalto)",
-            "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm",
-            "tipo": "HTML (Planalto)"
-        },
-        {
-            "titulo": "Portal da Legislação (Planalto) — Códigos (atalhos oficiais)",
-            "url": "https://www4.planalto.gov.br/legislacao/portal-legis/legislacao-1/codigos-1",
-            "tipo": "Portal (Planalto)"
-        },
-        {
-            "titulo": "Constituição Federal – 136ª Emenda (link que você enviou)",
-            "url": "https://share.google/1awiFMmPIeEJG2ICq",
-            "tipo": "Link externo"
+            "titulo": "Biblioteca Digital da OAB – Publicações",
+            "url": "http://www.oab.org.br/biblioteca-digital/publicacoes#",
+            "tipo": "OAB • Biblioteca Digital"
         },
     ]
-
-    # remove o primeiro e o último link, como você pediu
-    if len(links) >= 2:
-        links = links[1:-1]
 
     return render_template("biblioteca.html", links=links)
 
