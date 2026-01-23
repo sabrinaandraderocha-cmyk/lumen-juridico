@@ -23,11 +23,12 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "instance", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Limite de tamanho (ex.: 8 MB)
-app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8 MB
+ALLOWED_EXTS = {".pdf", ".docx"}
 
-ALLOWED_EXTS = {".pdf", ".docx"}  # Word = .docx
-
+# =========================
+# Linguagem / stopwords
+# =========================
 STOPWORDS_PT = {
     "a","o","os","as","um","uma","uns","umas","de","do","da","dos","das","em","no","na","nos","nas",
     "por","para","com","sem","sobre","entre","e","ou","que","se","ao","aos","à","às","como","mais",
@@ -36,6 +37,9 @@ STOPWORDS_PT = {
     "tribunal","stj","stf","tj","trf","ministro","ministra","voto","decisão","processo","recurso"
 }
 
+# =========================
+# Utilidades de texto
+# =========================
 def normalize(text: str) -> str:
     text = (text or "").strip()
     text = re.sub(r"\r\n?", "\n", text)
@@ -73,137 +77,110 @@ def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
 def pick_keywords(text: str, k=5):
     tokens = re.findall(r"[A-Za-zÀ-ÿ]{3,}", text.lower())
     tokens = [t for t in tokens if t not in STOPWORDS_PT]
-    if not tokens:
-        return []
     counts = Counter(tokens)
     return [w for w, _ in counts.most_common(k)]
 
 def extract_legal_citations(text: str, limit=8):
     patterns = [
-        r"\bart\.?\s*\d+[a-zA-Zº°]*\b(?:\s*,\s*§\s*\d+º?)?(?:\s*,\s*inc\.\s*[ivxlcdm]+)?",
-        r"\blei\s*n[ºo]\s*\d[\d\.\-]*\s*(?:/|\s*de\s*)\s*\d{2,4}\b",
-        r"\bdecreto-lei\s*n[ºo]\s*\d[\d\.\-]*\b",
+        r"\bart\.?\s*\d+[a-zA-Zº°]*\b(?:\s*,\s*§\s*\d+º?)?",
+        r"\blei\s*n[ºo]\s*\d[\d\.\-]*",
+        r"\bdecreto-lei\s*n[ºo]\s*\d[\d\.\-]*",
         r"\bconstitui[cç][aã]o\s*federal\b|\bCF/88\b|\bCF\b",
         r"\bCPC\b|\bCPP\b|\bCP\b|\bCLT\b|\bCDC\b"
     ]
     found = []
     for pat in patterns:
         for m in re.finditer(pat, text, flags=re.I):
-            snippet = re.sub(r"\s+", " ", m.group(0).strip())
-            if snippet and snippet.lower() not in [f.lower() for f in found]:
-                found.append(snippet)
+            val = m.group(0).strip()
+            if val.lower() not in [f.lower() for f in found]:
+                found.append(val)
             if len(found) >= limit:
                 return found
     return found
 
+# =========================
+# Núcleo da análise
+# =========================
 def build_output(text: str):
     text = normalize(text)
 
     ementa = extract_block(
         text,
-        start_patterns=[r"^ementa\b", r"\bementa\b"],
-        stop_patterns=[r"^ac[oó]rd[aã]o\b", r"^relat[oó]rio\b", r"^voto\b", r"^decis[aã]o\b"]
-    ) or text[:900].strip()
+        [r"\bementa\b"],
+        [r"\bac[oó]rd[aã]o\b", r"\brelat[oó]rio\b", r"\bvoto\b"]
+    ) or text[:900]
 
-    question = ""
-    for s in split_sentences(text):
-        if s.endswith("?") and len(s) <= 240:
-            question = s
-            break
+    question = next(
+        (s for s in split_sentences(text) if s.endswith("?") and len(s) < 240),
+        None
+    )
 
     if not question:
-        kws = pick_keywords(ementa, k=4)
-        question = (
-            f"Qual é a controvérsia principal envolvendo {', '.join(kws[:3])}?"
-            if kws else
-            "Qual é a controvérsia principal do caso?"
-        )
+        kws = pick_keywords(ementa, 3)
+        question = f"Qual é a controvérsia jurídica central envolvendo {', '.join(kws)}?"
 
     tese = extract_block(
         text,
-        start_patterns=[r"\btese\b", r"\bconclus[aã]o\b", r"\bdecide-se\b"],
-        stop_patterns=[r"^fundamenta[cç][aã]o\b", r"^relat[oó]rio\b", r"^voto\b", r"^dispositivo\b"],
-        max_chars=900
-    )
-    if not tese:
-        ementa_sents = split_sentences(ementa)
-        tese = " ".join(ementa_sents[:2]) if ementa_sents else ementa[:350]
+        [r"\btese\b", r"\bconclus[aã]o\b", r"\bdecide-se\b"],
+        [r"\bfundamenta[cç][aã]o\b", r"\bdispositivo\b"],
+        900
+    ) or " ".join(split_sentences(ementa)[:2])
 
-    fundamentos = extract_legal_citations(text, limit=8) or [
-        "(nenhuma referência legal detectada automaticamente — revise manualmente)"
+    fundamentos = extract_legal_citations(text) or [
+        "(nenhuma referência legal detectada automaticamente)"
     ]
 
-    low = text.lower()
-    hints = []
-    if any(w in low for w in ["concurso", "prova objetiva", "questão", "exame da ordem", "oab"]):
-        hints.append("Estudo/Prova: útil para questões de jurisprudência e fundamentos.")
-    if any(w in low for w in ["petição", "inicial", "contestação", "recurso", "agravo", "apelação", "habeas corpus", "mandado de segurança"]):
-        hints.append("Prática: pode virar argumento em peça/recurso com boa chance de pertinência.")
-    if not hints:
-        hints.append("Use como base para: (i) montar argumento; (ii) comparar casos semelhantes; (iii) revisar requisitos e exceções.")
+    aplicacao = (
+        "Útil para estudo, revisão de jurisprudência e construção de argumentos "
+        "em peças processuais ou provas."
+    )
 
     return {
-        "pergunta": question.strip(),
-        "tese": tese.strip(),
+        "pergunta": question,
+        "tese": tese,
         "fundamentos": fundamentos,
-        "aplicacao": " ".join(hints).strip(),
-        "ementa": ementa.strip(),
+        "aplicacao": aplicacao,
+        "ementa": ementa
     }
 
 # =========================
-# File helpers
+# Upload helpers
 # =========================
-def allowed_file(filename: str) -> bool:
-    _, ext = os.path.splitext(filename.lower())
-    return ext in ALLOWED_EXTS
+def allowed_file(filename):
+    return os.path.splitext(filename.lower())[1] in ALLOWED_EXTS
 
-def extract_text_from_pdf(path: str) -> str:
+def extract_text_from_pdf(path):
     reader = PdfReader(path)
-    chunks = []
-    for page in reader.pages:
-        txt = page.extract_text() or ""
-        if txt.strip():
-            chunks.append(txt)
-    return "\n".join(chunks).strip()
+    return "\n".join([p.extract_text() or "" for p in reader.pages])
 
-def extract_text_from_docx(path: str) -> str:
+def extract_text_from_docx(path):
     doc = Document(path)
-    parts = []
-    for p in doc.paragraphs:
-        if p.text and p.text.strip():
-            parts.append(p.text.strip())
-    return "\n".join(parts).strip()
+    return "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
 
-def get_text_from_upload(file_storage) -> str:
-    filename = secure_filename(file_storage.filename or "")
-    if not filename:
-        return ""
+def get_text_from_upload(file):
+    filename = secure_filename(file.filename)
+    ext = os.path.splitext(filename)[1].lower()
 
-    if not allowed_file(filename):
-        return ""
-
-    _, ext = os.path.splitext(filename.lower())
-    save_path = os.path.join(
+    path = os.path.join(
         UPLOAD_DIR,
         f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
     )
-    file_storage.save(save_path)
+    file.save(path)
 
     try:
         if ext == ".pdf":
-            return extract_text_from_pdf(save_path)
+            return extract_text_from_pdf(path)
         if ext == ".docx":
-            return extract_text_from_docx(save_path)
+            return extract_text_from_docx(path)
         return ""
     finally:
-        # remove arquivo após extrair texto (privacidade)
         try:
-            os.remove(save_path)
+            os.remove(path)
         except OSError:
             pass
 
 # =========================
-# Routes
+# Rotas
 # =========================
 @app.get("/")
 def home():
@@ -214,26 +191,16 @@ def analisar():
     texto = (request.form.get("texto") or "").strip()
     arquivo = request.files.get("arquivo")
 
-    # Se enviou arquivo, tenta extrair texto dele
     if arquivo and arquivo.filename:
         if not allowed_file(arquivo.filename):
-            flash("Formato não suportado. Envie PDF ou DOCX (Word).", "error")
+            flash("Envie apenas PDF ou DOCX.", "error")
             return redirect(url_for("home"))
 
         extraido = get_text_from_upload(arquivo)
-        if not extraido:
-            flash(
-                "Não foi possível extrair texto do arquivo. "
-                "Se for PDF escaneado, exporte para PDF pesquisável ou cole o texto manualmente.",
-                "error"
-            )
-            return redirect(url_for("home"))
+        texto = f"{texto}\n\n{extraido}" if texto else extraido
 
-        # Se também tiver texto colado, juntamos
-        texto = f"{texto}\n\n{extraido}".strip() if texto else extraido
-
-    if not texto:
-        flash("Cole um texto ou envie um arquivo (PDF/DOCX) para analisar.", "error")
+    if not texto.strip():
+        flash("Cole um texto ou envie um arquivo para análise.", "error")
         return redirect(url_for("home"))
 
     out = build_output(texto)
@@ -242,26 +209,61 @@ def analisar():
 @app.get("/biblioteca")
 def biblioteca():
     links = [
+        # Constituição
         {
-            "titulo": "Constituição Federal de 1988 (texto oficial compilado)",
-            "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
-            "tipo": "Constituição • Planalto"
+            "titulo": "Constituição Federal (PDF – DOU)",
+            "url": "https://www.planalto.gov.br/ccivil_03/constituicao/DOUconstituicao88.pdf",
+            "tipo": "Constituição"
         },
         {
-            "titulo": "Código de Defesa do Consumidor – Lei nº 8.078/1990 (texto compilado)",
+            "titulo": "Constituição Federal (texto compilado)",
+            "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
+            "tipo": "Constituição"
+        },
+
+        # Códigos
+        {
+            "titulo": "Código Penal",
+            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
+            "tipo": "Código"
+        },
+        {
+            "titulo": "Código de Processo Penal",
+            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm",
+            "tipo": "Código"
+        },
+        {
+            "titulo": "Código Civil",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",
+            "tipo": "Código"
+        },
+        {
+            "titulo": "Código de Processo Civil",
+            "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm",
+            "tipo": "Código"
+        },
+        {
+            "titulo": "Código de Defesa do Consumidor (CDC)",
             "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
-            "tipo": "Legislação • Planalto"
+            "tipo": "Código"
+        },
+
+        # Portais
+        {
+            "titulo": "Portal da Legislação – Planalto",
+            "url": "https://www4.planalto.gov.br/legislacao/portal-legis",
+            "tipo": "Portal"
         },
         {
             "titulo": "Livros Abertos – Direito (acesso aberto)",
             "url": "https://www.livrosabertos.abcd.usp.br/portaldelivrosUSP/catalog/category/direito",
-            "tipo": "Livros acadêmicos • Acesso aberto"
+            "tipo": "Livros acadêmicos"
         },
         {
-            "titulo": "Biblioteca Digital da OAB – Publicações",
+            "titulo": "Biblioteca Digital da OAB",
             "url": "http://www.oab.org.br/biblioteca-digital/publicacoes#",
-            "tipo": "OAB • Biblioteca Digital"
-        },
+            "tipo": "OAB"
+        }
     ]
 
     return render_template("biblioteca.html", links=links)
@@ -272,4 +274,4 @@ def sobre():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port)
