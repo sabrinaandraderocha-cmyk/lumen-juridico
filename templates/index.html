@@ -1,18 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Analisar 🟦Lumen Jurídico{% endblock %}
+{% block title %}Analisar • Lumen Jurídico{% endblock %}
+
 {% block content %}
   <section class="hero">
     <h1>Entenda o essencial de uma decisão</h1>
     <p>
-      <strong>Cole a ementa, o voto ou trecho do acórdão.</strong><br>
-      O Lumen organiza o conteúdo em <strong>pergunta jurídica, tese, fundamentos e aplicação prática</strong>,
-      facilitando a compreensão do julgado.
+      <strong>Cole a ementa, o voto ou trecho do acórdão — ou envie um arquivo.</strong><br>
+      O Lumen organiza o conteúdo em
+      <strong>pergunta jurídica, tese, fundamentos e aplicação prática</strong>,
+      auxiliando a compreensão de decisões judiciais
+      <strong>em todos os ramos do Direito</strong>.
       <span class="muted">Funciona localmente, sem uso de IA externa.</span>
     </p>
   </section>
 
   <section class="card">
-    <form method="post" action="{{ url_for('analisar') }}">
+    <form
+      method="post"
+      action="{{ url_for('analisar') }}"
+      enctype="multipart/form-data"
+    >
       <label for="texto">Texto da decisão</label>
       <textarea
         id="texto"
@@ -21,14 +28,29 @@
         placeholder="Cole aqui a ementa, o voto ou outro trecho da decisão judicial..."
       ></textarea>
 
-      <div class="row">
+      <label for="arquivo" style="margin-top:14px;">
+        Ou envie um arquivo (PDF ou Word)
+      </label>
+      <input
+        id="arquivo"
+        name="arquivo"
+        type="file"
+        accept=".pdf,.docx"
+      >
+
+      <div class="row" style="margin-top:16px;">
         <button class="btn" type="submit">Analisar</button>
-        <a class="btn secondary" href="{{ url_for('biblioteca') }}">Abrir Biblioteca</a>
+        <a class="btn secondary" href="{{ url_for('biblioteca') }}">
+          Abrir Biblioteca
+        </a>
       </div>
 
       <p class="muted" style="margin-top:12px;">
-        Dica: a análise funciona bem apenas com a ementa. Ao inserir o voto ou o acórdão completo,
-        o app tenta identificar referências legais relevantes (artigos e leis).
+        Dica: a análise funciona bem apenas com a ementa.
+        Ao inserir o voto, o acórdão completo ou um arquivo,
+        o app tenta identificar automaticamente
+        <strong>referências legais relevantes</strong>
+        (artigos, leis e códigos).
       </p>
     </form>
   </section>
