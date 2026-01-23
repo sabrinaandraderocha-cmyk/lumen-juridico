@@ -1,10 +1,46 @@
 {% extends "base.html" %}
 {% block title %}Resultado • Lumen Jurídico{% endblock %}
+
 {% block content %}
   <section class="hero">
     <h1>Leitura estruturada</h1>
-    <p class="muted">Gerado em {{ now.strftime("%d/%m/%Y %H:%M") }} • revise e ajuste (o app é um “primeiro rascunho”).</p>
+    <p class="muted">
+      Gerado em {{ now.strftime("%d/%m/%Y %H:%M") }} • revise e ajuste (o app é um “primeiro rascunho”).
+    </p>
+
+    <div class="row" style="margin-top:12px;">
+      <button class="btn" type="button" onclick="copyReport()">Copiar relatório</button>
+      <a class="btn secondary" href="{{ url_for('home') }}">Nova análise</a>
+      <a class="btn secondary" href="{{ url_for('biblioteca') }}">Biblioteca</a>
+    </div>
+
+    {% if out.alerta %}
+      <div class="card" style="margin-top:14px; border-color: #f59e0b; background: #fffbeb;">
+        <strong>Aviso:</strong> {{ out.alerta }}
+      </div>
+    {% endif %}
   </section>
+
+  {% if out.keywords and out.keywords|length > 0 %}
+    <section class="card">
+      <h2>Palavras-chave</h2>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
+        {% for k in out.keywords %}
+          <span style="
+            display:inline-block;
+            padding:6px 10px;
+            border-radius:999px;
+            border:1px solid var(--border);
+            background:#f9fafb;
+            font-size:13px;
+          ">{{ k }}</span>
+        {% endfor %}
+      </div>
+      <p class="muted" style="margin-top:10px;">
+        Sugestão: use essas palavras para buscar jurisprudência semelhante e montar referências.
+      </p>
+    </section>
+  {% endif %}
 
   <section class="grid2">
     <div class="card">
@@ -13,41 +49,123 @@
     </div>
 
     <div class="card">
-      <h2>Tese (ratio / núcleo decisório)</h2>
-      <p>{{ out.tese }}</p>
+      <h2>Tese (núcleo decisório)</h2>
+
+      {% if out.tese_regra %}
+        <p><strong>Regra:</strong> {{ out.tese_regra }}</p>
+        {% if out.tese_excecao %}
+          <p style="margin-top:10px;"><strong>Ressalva/Exceção:</strong> {{ out.tese_excecao }}</p>
+        {% endif %}
+      {% else %}
+        <p>{{ out.tese }}</p>
+      {% endif %}
+
+      <p class="muted" style="margin-top:10px;">
+        Dica: transforme esta tese em uma frase “Se… então…” para usar em peça ou estudo.
+      </p>
     </div>
 
     <div class="card">
-      <h2>Fundamentos (referências detectadas)</h2>
+      <h2>Fundamentos — normas</h2>
       <ul>
-        {% for f in out.fundamentos %}
+        {% for f in out.fundamentos_normas %}
           <li>{{ f }}</li>
         {% endfor %}
       </ul>
-      <p class="hint">Se faltou algo, é normal: algumas decisões citam leis de formas muito variadas.</p>
+      <p class="muted" style="margin-top:10px;">
+        Se faltou algo, é normal: algumas decisões citam leis de formas variadas.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Fundamentos — jurisprudência/temas</h2>
+      <ul>
+        {% for j in out.fundamentos_juris %}
+          <li>{{ j }}</li>
+        {% endfor %}
+      </ul>
+      <p class="muted" style="margin-top:10px;">
+        Quando aparecer, use estes itens para localizar o precedente completo.
+      </p>
     </div>
 
     <div class="card">
       <h2>Como isso cai na prática/estudo</h2>
       <p>{{ out.aplicacao }}</p>
     </div>
+
+    <div class="card">
+      <h2>Ementa / trecho-base</h2>
+      <pre class="pre">{{ out.ementa }}</pre>
+    </div>
   </section>
 
   <section class="card">
-    <h2>Ementa / trecho-base</h2>
-    <pre class="pre">{{ out.ementa }}</pre>
-  </section>
-
-  <section class="card">
-    <h2>Texto original (o que você colou)</h2>
+    <h2>Texto original (o que foi analisado)</h2>
     <details>
       <summary>Ver/ocultar</summary>
       <pre class="pre">{{ texto }}</pre>
     </details>
   </section>
 
-  <div class="row">
-    <a class="btn" href="{{ url_for('home') }}">Nova análise</a>
-    <a class="btn secondary" href="{{ url_for('biblioteca') }}">Biblioteca</a>
-  </div>
+  <textarea id="copyBuffer" style="position:absolute; left:-9999px; top:-9999px;"></textarea>
+
+  <script>
+    function copyReport(){
+      const pergunta = {{ out.pergunta|tojson }};
+      const tese = {{ out.tese|tojson }};
+      const regra = {{ (out.tese_regra or "")|tojson }};
+      const excecao = {{ (out.tese_excecao or "")|tojson }};
+      const normas = {{ (out.fundamentos_normas or [])|tojson }};
+      const juris = {{ (out.fundamentos_juris or [])|tojson }};
+      const aplicacao = {{ out.aplicacao|tojson }};
+      const ementa = {{ out.ementa|tojson }};
+      const kws = {{ (out.keywords or [])|tojson }};
+
+      let teseTxt = tese;
+      if (regra){
+        teseTxt = "Regra: " + regra + (excecao ? "\\nRessalva/Exceção: " + excecao : "");
+      }
+
+      const texto =
+`LUMEN JURÍDICO — RELATÓRIO DE LEITURA
+
+Data/hora: {{ now.strftime("%d/%m/%Y %H:%M") }}
+
+PALAVRAS-CHAVE
+${kws.length ? kws.join(", ") : "(não identificado)"}
+
+1) Pergunta jurídica
+${pergunta}
+
+2) Tese (núcleo decisório)
+${teseTxt}
+
+3) Fundamentos — normas
+${normas.length ? normas.map(x => "- " + x).join("\\n") : "- (não identificado)"}
+
+4) Fundamentos — jurisprudência/temas
+${juris.length ? juris.map(x => "- " + x).join("\\n") : "- (não identificado)"}
+
+5) Aplicação prática
+${aplicacao}
+
+6) Ementa / trecho-base
+${ementa}
+`;
+
+      const buf = document.getElementById("copyBuffer");
+      buf.value = texto;
+      buf.select();
+      buf.setSelectionRange(0, 999999);
+
+      // tenta clipboard moderno; cai pro execCommand se necessário
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(texto).then(() => alert("Relatório copiado ✅"));
+      } else {
+        document.execCommand("copy");
+        alert("Relatório copiado ✅");
+      }
+    }
+  </script>
 {% endblock %}
