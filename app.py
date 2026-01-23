@@ -4,12 +4,29 @@ from collections import Counter
 from datetime import datetime
 
 from flask import Flask, render_template, request, redirect, url_for, flash
+from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+
+# Leitura de arquivos
+from pypdf import PdfReader
+from docx import Document
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-change-me")
+
+# =========================
+# Upload config
+# =========================
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "instance", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Limite de tamanho (ex.: 8 MB)
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
+
+ALLOWED_EXTS = {".pdf", ".docx"}  # Word = .docx
 
 STOPWORDS_PT = {
     "a","o","os","as","um","uma","uns","umas","de","do","da","dos","das","em","no","na","nos","nas",
@@ -133,15 +150,80 @@ def build_output(text: str):
         "ementa": ementa.strip(),
     }
 
+# =========================
+# File helpers
+# =========================
+def allowed_file(filename: str) -> bool:
+    _, ext = os.path.splitext(filename.lower())
+    return ext in ALLOWED_EXTS
+
+def extract_text_from_pdf(path: str) -> str:
+    reader = PdfReader(path)
+    chunks = []
+    for page in reader.pages:
+        txt = page.extract_text() or ""
+        if txt.strip():
+            chunks.append(txt)
+    return "\n".join(chunks).strip()
+
+def extract_text_from_docx(path: str) -> str:
+    doc = Document(path)
+    parts = []
+    for p in doc.paragraphs:
+        if p.text and p.text.strip():
+            parts.append(p.text.strip())
+    return "\n".join(parts).strip()
+
+def get_text_from_upload(file_storage) -> str:
+    filename = secure_filename(file_storage.filename or "")
+    if not filename:
+        return ""
+
+    if not allowed_file(filename):
+        return ""
+
+    _, ext = os.path.splitext(filename.lower())
+    save_path = os.path.join(UPLOAD_DIR, f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}")
+    file_storage.save(save_path)
+
+    try:
+        if ext == ".pdf":
+            return extract_text_from_pdf(save_path)
+        if ext == ".docx":
+            return extract_text_from_docx(save_path)
+        return ""
+    finally:
+        # remove arquivo após extrair texto (privacidade)
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+
 @app.get("/")
 def home():
     return render_template("index.html")
 
 @app.post("/analisar")
 def analisar():
-    texto = request.form.get("texto", "")
-    if not texto.strip():
-        flash("Cole um trecho de decisão (ementa, voto, relatório etc.) para analisar.", "error")
+    texto = (request.form.get("texto") or "").strip()
+    arquivo = request.files.get("arquivo")
+
+    # Se enviou arquivo, tenta extrair texto dele
+    if arquivo and arquivo.filename:
+        if not allowed_file(arquivo.filename):
+            flash("Formato não suportado. Envie PDF ou DOCX (Word).", "error")
+            return redirect(url_for("home"))
+
+        extraido = get_text_from_upload(arquivo)
+        if not extraido:
+            flash("Não foi possível extrair texto do arquivo. Se for PDF escaneado, exporte para PDF pesquisável ou cole o texto manualmente.", "error")
+            return redirect(url_for("home"))
+
+        # Se também tiver texto colado, juntamos
+        texto = f"{texto}\n\n{extraido}".strip() if texto else extraido
+
+    if not texto:
+        flash("Cole um texto ou envie um arquivo (PDF/DOCX) para analisar.", "error")
         return redirect(url_for("home"))
 
     out = build_output(texto)
@@ -192,7 +274,7 @@ def biblioteca():
         },
     ]
 
-    # ✅ Remove o primeiro e o último link (como você pediu)
+    # remove o primeiro e o último link, como você pediu
     if len(links) >= 2:
         links = links[1:-1]
 
@@ -203,6 +285,5 @@ def sobre():
     return render_template("sobre.html")
 
 if __name__ == "__main__":
-    # ✅ compatível com Render (usa PORT quando existir)
     port = int(os.getenv("PORT", "5000"))
     app.run(host="0.0.0.0", port=port, debug=False)
