@@ -1,62 +1,80 @@
-<!doctype html>
-<html lang="pt-br">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Lumen Jurídico{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-  <header class="topbar">
-    <div class="container topbar-inner">
-      <div class="brand">
+{% extends "base.html" %}
+{% block title %}Sobre • Lumen Jurídico{% endblock %}
 
-        <div>
-          <div class="brand-name">
-            <span class="brand-title">
-              <!-- ÍCONE LÂMPADA -->
-              <span class="brand-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" width="18" height="18" role="img" focusable="false">
-                  <path d="M9 21h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M10 17h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M12 2a7 7 0 0 0-4 12c.6.5 1 1.2 1 2v1h6v-1c0-.8.4-1.5 1-2A7 7 0 0 0 12 2Z"
-                        fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
-                </svg>
-              </span>
-              Lumen Jurídico
-            </span>
-          </div>
-          <div class="brand-tag">Clareza sobre decisões judiciais.</div>
-        </div>
-      </div>
-
-      <nav class="nav">
-        <a href="{{ url_for('home') }}">Analisar</a>
-        <a href="{{ url_for('biblioteca') }}">Biblioteca</a>
-        <a href="{{ url_for('sobre') }}">Sobre</a>
-      </nav>
+{% block content %}
+  <section class="hero">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Funciona localmente • sem IA externa
     </div>
-  </header>
 
-  <main class="container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-wrap">
-          {% for category, message in messages %}
-            <div class="flash {{ category }}">{{ message }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
+    <h1>Sobre o Lumen Jurídico</h1>
 
-    {% block content %}{% endblock %}
-  </main>
+    <p class="lead">
+      Leitura jurídica clara, estruturada e responsável.
+    </p>
 
-  <footer class="footer">
-    <div class="container footer-inner">
-      <div>© 2026 • Lumen Jurídico</div>
-      <div class="muted">Ferramenta de apoio à leitura jurídica. Não substitui estudo nem orientação profissional.</div>
-    </div>
-  </footer>
-</body>
-</html>
+    <p class="muted">
+      O <strong>Lumen Jurídico</strong> é um aplicativo local criado para apoiar
+      estudantes e profissionais do Direito na <strong>compreensão técnica de decisões judiciais</strong>.
+      Ele não “decide” nada por você: apenas organiza o texto em blocos úteis.
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Para quem é</h2>
+    <ul>
+      <li><strong>Estudantes</strong> que precisam entender rapidamente o núcleo de uma decisão e revisar para prova.</li>
+      <li><strong>Concurseiros</strong> que querem roteiro de leitura + checklist para identificar pontos cobrados.</li>
+      <li><strong>Profissionais</strong> que desejam estruturar uma leitura inicial antes de aprofundar no inteiro teor.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Para quem não é</h2>
+    <ul>
+      <li>Para substituir a leitura integral quando o caso exige precisão (peças, pareceres, prova prática).</li>
+      <li>Para “achar automaticamente” a resposta do caso ou prometer resultado processual.</li>
+      <li>Para consultas em bases fechadas de tribunais ou sistemas internos (o app não faz isso).</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>O que o Lumen faz</h2>
+    <ul>
+      <li>Identifica o <strong>tema principal</strong> do texto.</li>
+      <li>Lista <strong>normas e artigos citados</strong>, indicando a origem (CP, CPP, CPC, CF/88 etc.).</li>
+      <li>Gera uma <strong>pergunta jurídica</strong> orientadora para estudo e pesquisa.</li>
+      <li>Mostra <strong>palavras-chave</strong> e <strong>pesquisas prontas</strong> para jurisprudência.</li>
+      <li>Entrega um <strong>checklist prático</strong> (estudo e prova).</li>
+      <li>Apresenta <strong>termos jurídicos importantes</strong> com tradução em linguagem simples.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Privacidade e transparência</h2>
+    <p class="muted">
+      O Lumen Jurídico funciona com <strong>processamento local</strong>.
+      Os textos inseridos não são enviados para serviços externos e não são usados para treinar modelos.
+    </p>
+    <p class="muted" style="margin-top:8px;">
+      A ideia é ser uma ferramenta <strong>ética</strong> e <strong>transparente</strong> de apoio à leitura,
+      sem substituir o raciocínio jurídico humano.
+    </p>
+  </section>
+
+  <section class="card" style="border-style:dashed;">
+    <h2>Manifesto Lumen</h2>
+    <p style="line-height:1.65;">
+      <strong>O Direito é linguagem.</strong> E uma decisão judicial, antes de ser “resultado”, é texto:
+      contexto, premissas, fundamentos e limites.
+    </p>
+    <p style="margin-top:10px; line-height:1.65;">
+      O Lumen existe para iluminar o que está no texto — <strong>sem atalhos mágicos</strong> e sem promessas fáceis —
+      ajudando você a ler melhor, pesquisar melhor e decidir melhor o próximo passo.
+    </p>
+    <p class="muted" style="margin-top:10px;">
+      Lumen: clareza, método e responsabilidade.
+    </p>
+  </section>
+{% endblock %}
