@@ -50,25 +50,6 @@ def split_sentences(text: str):
     parts = re.split(r"(?<=[\.\?!])\s+", (text or "").strip())
     return [p.strip() for p in parts if p.strip()]
 
-def clean_noise(s: str) -> str:
-    s = (s or "").strip()
-    s = re.sub(r"\s+", " ", s)
-    # heurística leve para reduzir vícios de fala
-    s = re.sub(r"\b(né|tipo|assim|daí|toda hora)\b", "", s, flags=re.I)
-    s = re.sub(r"\s{2,}", " ", s).strip()
-    return s
-
-def shorten(s: str, max_chars=260) -> str:
-    s = clean_noise(s)
-    if len(s) <= max_chars:
-        return s
-    cut = s.rfind(".", 0, max_chars)
-    if cut < 80:
-        cut = s.rfind(";", 0, max_chars)
-    if cut < 80:
-        cut = max_chars
-    return s[:cut].rstrip(" .;:-") + "…"
-
 def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
     lower = text.lower()
     start_idx = None
@@ -93,91 +74,136 @@ def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
     block = tail[:stop_idx] if stop_idx else tail
     return block.strip()[:max_chars].strip()
 
-def pick_keywords(text: str, k=5):
+def pick_keywords(text: str, k=6):
     tokens = re.findall(r"[A-Za-zÀ-ÿ]{3,}", (text or "").lower())
     tokens = [t for t in tokens if t not in STOPWORDS_PT]
+    if not tokens:
+        return []
     counts = Counter(tokens)
     return [w for w, _ in counts.most_common(k)]
 
 def extract_legal_citations(text: str, limit=10):
     patterns = [
-        r"\bart\.?\s*\d+[a-zA-Zº°]*\b(?:\s*,\s*§\s*\d+º?)?",
-        r"\blei\s*n[ºo]\s*\d[\d\.\-]*",
-        r"\bdecreto-lei\s*n[ºo]\s*\d[\d\.\-]*",
+        r"\bart\.?\s*\d+[a-zA-Zº°]*\b(?:\s*,\s*§\s*\d+º?)?(?:\s*,\s*inc\.\s*[ivxlcdm]+)?",
+        r"\blei\s*n[ºo]\s*\d[\d\.\-]*\s*(?:/|\s*de\s*)\s*\d{2,4}\b",
+        r"\bdecreto-lei\s*n[ºo]\s*\d[\d\.\-]*\b",
         r"\bconstitui[cç][aã]o\s*federal\b|\bCF/88\b|\bCF\b",
         r"\bCPC\b|\bCPP\b|\bCP\b|\bCLT\b|\bCDC\b"
     ]
     found = []
     for pat in patterns:
         for m in re.finditer(pat, text, flags=re.I):
-            val = re.sub(r"\s+", " ", m.group(0).strip())
-            if val and val.lower() not in [f.lower() for f in found]:
-                found.append(val)
+            snippet = re.sub(r"\s+", " ", m.group(0).strip())
+            if snippet and snippet.lower() not in [f.lower() for f in found]:
+                found.append(snippet)
             if len(found) >= limit:
                 return found
     return found
 
-def pick_best_question(text: str) -> str:
-    # 1) frases com ? e tamanho razoável
+def extract_jurisprudencia_refs(text: str, limit=10):
+    patterns = [
+        r"\bREsp\s*\d[\d\.\-\/]*\b",
+        r"\bAgRg\b|\bAgInt\b|\bEDcl\b|\bEmbargos?\b",
+        r"\bHC\s*\d[\d\.\-\/]*\b",
+        r"\bRHC\s*\d[\d\.\-\/]*\b",
+        r"\bADI\s*\d[\d\.\-\/]*\b|\bADPF\s*\d[\d\.\-\/]*\b|\bADC\s*\d[\d\.\-\/]*\b",
+        r"\bTema\s*\d+\b",
+        r"\bS[úu]mula\s*\d+\b"
+    ]
+    found = []
+    for pat in patterns:
+        for m in re.finditer(pat, text, flags=re.I):
+            s = re.sub(r"\s+", " ", m.group(0).strip())
+            if s and s.lower() not in [f.lower() for f in found]:
+                found.append(s)
+            if len(found) >= limit:
+                return found
+    return found
+
+def guess_rule_exception(tese: str):
+    separators = ["ressalv", "exceto", "salvo", "contudo", "entretanto", "todavia", "porém", "no entanto"]
+    low = (tese or "").lower()
+    for sep in separators:
+        idx = low.find(sep)
+        if idx != -1 and idx > 20:
+            regra = tese[:idx].strip(" .;:-")
+            excecao = tese[idx:].strip(" .;:-")
+            return regra, excecao
+    return (tese or "").strip(), ""
+
+def analyze_quality(text: str):
+    t = (text or "").strip()
+    if len(t) < 450:
+        return "Texto muito curto. Se for despacho/decisão sem fundamentação, o Lumen terá pouco material para estruturar."
+    return ""
+
+def pick_best_question(text: str, fallback_base: str) -> str:
     candidates = [s for s in split_sentences(text) if s.endswith("?") and 15 <= len(s) <= 240]
     if candidates:
-        return shorten(candidates[0], 240)
-
-    # 2) tenta achar controvérsia/questão em frases com marcadores
+        return candidates[0].strip()
     markers = ["discute-se", "controvérsia", "questão", "trata-se", "cuidam os autos", "pretende"]
-    for s in split_sentences(text)[:20]:
+    for s in split_sentences(text)[:25]:
         low = s.lower()
         if any(m in low for m in markers) and 30 <= len(s) <= 260:
-            return shorten(s, 240)
-
-    # 3) fallback com keywords
-    kws = pick_keywords(text, k=3)
+            return s.strip()
+    kws = pick_keywords(fallback_base, k=3)
     if kws:
         return f"Qual é a controvérsia jurídica central envolvendo {', '.join(kws)}?"
     return "Qual é a controvérsia jurídica central do caso?"
 
 # =========================
-# Núcleo da análise
+# Núcleo da análise (compatível com resultado.html completo)
 # =========================
 def build_output(text: str):
     text = normalize(text)
 
     ementa = extract_block(
         text,
-        [r"\bementa\b"],
-        [r"\bac[oó]rd[aã]o\b", r"\brelat[oó]rio\b", r"\bvoto\b"]
-    ) or text[:900]
+        start_patterns=[r"\bementa\b"],
+        stop_patterns=[r"\bac[oó]rd[aã]o\b", r"\brelat[oó]rio\b", r"\bvoto\b"],
+        max_chars=1600
+    ) or text[:900].strip()
 
-    question = pick_best_question(text)
+    pergunta = pick_best_question(text, ementa)
 
     tese = extract_block(
         text,
-        [r"\btese\b", r"\bconclus[aã]o\b", r"\bdecide-se\b"],
-        [r"\bfundamenta[cç][aã]o\b", r"\bdispositivo\b"],
-        1400
-    ) or " ".join(split_sentences(ementa)[:2])
-
-    # versão curta para tela
-    tese_curta = shorten(tese, 520)
-
-    fundamentos = extract_legal_citations(text, limit=10) or [
-        "(nenhuma referência legal detectada automaticamente)"
-    ]
-
-    # aplicação mais objetiva (sem prometer demais)
-    aplicacao = (
-        "Use este resultado para: (i) revisar a tese do julgado; "
-        "(ii) localizar as normas citadas; (iii) estruturar um fichamento "
-        "ou argumento em peça/prova."
+        start_patterns=[r"\btese\b", r"\bconclus[aã]o\b", r"\bdecide-se\b", r"\bdispositivo\b"],
+        stop_patterns=[r"\bfundamenta[cç][aã]o\b", r"\brelat[oó]rio\b"],
+        max_chars=1400
     )
+    if not tese:
+        ementa_sents = split_sentences(ementa)
+        tese = " ".join(ementa_sents[:2]) if ementa_sents else ementa[:400]
+
+    tese_regra, tese_excecao = guess_rule_exception(tese)
+
+    fundamentos_normas = extract_legal_citations(text, limit=10) or ["(não identificado automaticamente)"]
+    fundamentos_juris = extract_jurisprudencia_refs(text, limit=10) or ["(não identificado automaticamente)"]
+
+    keywords = pick_keywords(ementa, k=6)
+    alerta = analyze_quality(text)
+
+    low = text.lower()
+    hints = []
+    if any(w in low for w in ["concurso", "prova objetiva", "questão", "exame da ordem", "oab"]):
+        hints.append("Estudo/Prova: útil para questões de jurisprudência e fundamentos.")
+    if any(w in low for w in ["petição", "inicial", "contestação", "recurso", "agravo", "apelação", "habeas corpus", "mandado de segurança"]):
+        hints.append("Prática: pode virar argumento em peça/recurso com boa chance de pertinência.")
+    if not hints:
+        hints.append("Use como base para: (i) montar argumento; (ii) comparar casos semelhantes; (iii) revisar requisitos e exceções.")
 
     return {
-        "pergunta": question,
-        "tese": tese,
-        "tese_curta": tese_curta,
-        "fundamentos": fundamentos,
-        "aplicacao": aplicacao,
-        "ementa": ementa
+        "pergunta": pergunta.strip(),
+        "tese": tese.strip(),
+        "tese_regra": tese_regra.strip(),
+        "tese_excecao": tese_excecao.strip(),
+        "fundamentos_normas": fundamentos_normas,
+        "fundamentos_juris": fundamentos_juris,
+        "keywords": keywords,
+        "aplicacao": " ".join(hints).strip(),
+        "ementa": ementa.strip(),
+        "alerta": alerta,
     }
 
 # =========================
@@ -240,7 +266,7 @@ def analisar():
             flash("Envie apenas PDF ou DOCX.", "error")
             return redirect(url_for("home"))
 
-        extraido = get_text_from_upload(arquivo).strip()
+        extraido = (get_text_from_upload(arquivo) or "").strip()
         if not extraido:
             flash(
                 "Não foi possível extrair texto do arquivo. "
@@ -300,7 +326,7 @@ def biblioteca():
             "tipo": "Código"
         },
 
-        # Portais e bibliotecas
+        # Portais
         {
             "titulo": "Portal da Legislação – Planalto",
             "url": "https://www4.planalto.gov.br/legislacao/portal-legis",
