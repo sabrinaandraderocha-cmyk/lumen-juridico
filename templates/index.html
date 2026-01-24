@@ -3,14 +3,25 @@
 
 {% block content %}
   <section class="hero">
-    <h1>Entenda o essencial de uma decisão</h1>
-    <p>
-      <strong>Cole a ementa, o voto ou trecho do acórdão — ou envie um arquivo.</strong><br>
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Funciona localmente • sem IA externa
+    </div>
+
+    <h1>Entenda decisões judiciais em minutos</h1>
+
+    <p class="lead">
+      Cole a ementa, o voto ou um trecho do acórdão — ou envie um PDF/DOCX.
+    </p>
+
+    <p class="muted">
       O Lumen organiza o conteúdo em
-      <strong>pergunta jurídica, tese, fundamentos e aplicação prática</strong>,
-      auxiliando a compreensão de decisões judiciais
-      <strong>em todos os ramos do Direito</strong>.
-      <span class="muted">Funciona localmente, sem uso de IA externa.</span>
+      <strong>pergunta jurídica</strong>,
+      <strong>tese</strong>,
+      <strong>fundamentos</strong>
+      e <strong>caminhos de aplicação e pesquisa</strong>,
+      facilitando a leitura técnica de decisões
+      em <strong>todos os ramos do Direito</strong>.
     </p>
   </section>
 
@@ -38,20 +49,58 @@
         accept=".pdf,.docx"
       >
 
-      <div class="row" style="margin-top:16px;">
-        <button class="btn" type="submit">Analisar</button>
+      <div class="row" style="margin-top:16px; gap:10px; flex-wrap:wrap;">
+        <button class="btn" type="submit">Analisar decisão</button>
         <a class="btn secondary" href="{{ url_for('biblioteca') }}">
           Abrir Biblioteca
         </a>
       </div>
 
       <p class="muted" style="margin-top:12px;">
-        Dica: a análise funciona bem apenas com a ementa.
+        Dica: a análise funciona bem apenas com a <strong>ementa</strong>.
         Ao inserir o voto, o acórdão completo ou um arquivo,
-        o app tenta identificar automaticamente
-        <strong>referências legais relevantes</strong>
-        (artigos, leis e códigos).
+        o Lumen tenta identificar automaticamente
+        <strong>referências normativas e precedentes relevantes</strong>.
       </p>
     </form>
   </section>
+
+  <style>
+    /* Ajustes locais do hero (não quebra seu CSS global) */
+    .hero { padding: 26px 0; }
+    .hero h1 {
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin: 10px 0 0 0;
+    }
+    .hero .lead {
+      font-size: 16px;
+      margin-top: 12px;
+      line-height: 1.6;
+    }
+    .hero .muted {
+      margin-top: 10px;
+      max-width: 720px;
+    }
+    .hero-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:#f9fafb;
+      font-size:12px;
+      color:#334155;
+      width: fit-content;
+    }
+    .hero-badge .dot{
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:#2563eb;
+      display:inline-block;
+    }
+  </style>
 {% endblock %}
