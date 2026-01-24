@@ -36,7 +36,7 @@ ALLOWED_EXTS = {".pdf", ".docx"}
 GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
 
 # =========================
-# Biblioteca (base) — usada no /biblioteca e nas sugestões
+# Biblioteca (base)
 # =========================
 LIBRARY_LINKS = [
     # Constituição
@@ -90,7 +90,9 @@ STOPWORDS_PT = {
     "menos","já","não","sim","ser","foi","é","são","era","sendo","ter","tem","têm","haver","há",
     "art","artigo","lei","decreto","resolução","acórdão","relator","relatora","turma","câmara",
     "tribunal","stj","stf","tj","trf","ministro","ministra","voto","decisão","processo","recurso",
-    "ementa"
+    "ementa",
+    # ✅ evita “tema” virar “embargos”
+    "embargos","embargo"
 }
 
 # =========================
@@ -476,9 +478,8 @@ def build_main_theme(keywords: list[str], fundamentos_normas: list[str], fundame
 
     if kws:
         return f"{', '.join(kws)}{norm_hint}".strip()
-    if fundamentos_juris and fundamentos_juris[0] and fundamentos_juris[0] != "(não identificado automaticamente)":
-        return f"Tema relacionado a {fundamentos_juris[0]}{norm_hint}".strip()
-    return "Tema não identificado automaticamente."
+
+    return f"Tema do caso{norm_hint}".strip()
 
 # =========================
 # Núcleo da análise
@@ -512,7 +513,11 @@ def build_output(text: str):
     fundamentos_normas = extract_legal_citations(text, limit=14) or ["(não identificado automaticamente)"]
     fundamentos_juris = extract_jurisprudencia_refs(text, limit=12) or ["(não identificado automaticamente)"]
 
-    resumo = " ".join(split_sentences(ementa)[:6]).strip()
+    # ✅ resumo mais robusto
+    resumo_sents = split_sentences(ementa)
+    resumo = " ".join(resumo_sents[:6]).strip()
+    if len(resumo) < 60:
+        resumo = " ".join(split_sentences(text)[:8]).strip()
 
     pesquisas = build_search_queries(pergunta, tese, keywords, max_items=4)
     improved_q = improve_user_question(request.form.get("texto", "") if request else "", keywords)
