@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}Lumen Jurídico{% endblock %}</title>
 
-  <!-- Fonte (opcional) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
-  <!-- CSS do projeto -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -18,7 +16,16 @@
   <header class="topbar">
     <div class="container topbar-inner">
       <div class="brand">
-        <div class="logo" aria-hidden="true"></div>
+        <!-- ✅ ÍCONE LÂMPADA (SEM QUADRADO AZUL) -->
+        <span class="brand-icon" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <path d="M9 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M10 22h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M8 14c-1.2-1.1-2-2.7-2-4.6A6 6 0 1 1 18 9.4c0 1.9-.8 3.5-2 4.6-.7.7-1 1.2-1 2.1v.4H9v-.4c0-.9-.3-1.4-1-2.1Z"
+                  stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </span>
+
         <div>
           <div class="brand-name">Lumen Jurídico</div>
           <div class="brand-tag">Clareza sobre decisões judiciais.</div>
