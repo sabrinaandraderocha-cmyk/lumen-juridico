@@ -8,8 +8,9 @@
       Gerado em {{ now.strftime("%d/%m/%Y %H:%M") }} • revise antes de usar em estudo/peça.
     </p>
 
-    <div class="row" style="margin-top:12px; flex-wrap:wrap; gap:10px;">
-      <button class="btn" type="button" onclick="copyReport()">Copiar relatório</button>
+    <!-- ✅ Botões padronizados (usa .actions do seu CSS) -->
+    <div class="actions" style="margin-top:12px;">
+      <button class="btn primary" type="button" onclick="copyReport()">Copiar relatório</button>
 
       {% if out.queries_juris and out.queries_juris|length > 0 %}
         <button class="btn secondary" type="button" onclick="copySearches()">Copiar pesquisas</button>
@@ -27,17 +28,41 @@
     {% endif %}
   </section>
 
-  {# ✅ PRINCIPAL TEMA DO TEXTO #}
+  {# ✅ TEMA PRINCIPAL (1 linha, sem “ementa crua”) #}
   <section class="card" style="margin-top:14px;">
     <h2>Principal tema do texto</h2>
-    <p style="font-size:16px; line-height:1.6;">
-      <strong>{{ out.tema_principal or "Tema não identificado automaticamente." }}</strong>
-    </p>
 
-    {% if out.resumo %}
-      <p class="muted" style="margin-top:10px;">
-        Síntese: {{ out.resumo }}
+    {% set tema = (out.tema_principal or "") %}
+    {% set tema_lower = tema|lower %}
+
+    {% if tema and "tema do caso" not in tema_lower %}
+      <p style="font-size:16px; line-height:1.6;">
+        <strong>{{ tema }}</strong>
       </p>
+    {% else %}
+      {# fallback: se tema vier genérico, usamos a pergunta como headline #}
+      <p style="font-size:16px; line-height:1.6;">
+        <strong>{{ out.pergunta_objetiva or out.pergunta or "Tema não identificado automaticamente." }}</strong>
+      </p>
+    {% endif %}
+
+    {# ✅ Síntese separada: curta + ver mais #}
+    {% if out.resumo %}
+      <div style="margin-top:12px;">
+        <h3 style="margin:0 0 6px 0;">Síntese do caso</h3>
+        <p class="muted" style="line-height:1.6;">
+          {{ out.resumo[:240] }}{% if out.resumo|length > 240 %}…{% endif %}
+        </p>
+
+        {% if out.resumo|length > 240 %}
+          <details style="margin-top:10px;">
+            <summary>Ver síntese completa</summary>
+            <p class="muted" style="margin-top:10px; line-height:1.65;">
+              {{ out.resumo }}
+            </p>
+          </details>
+        {% endif %}
+      </div>
     {% endif %}
   </section>
 
@@ -198,7 +223,7 @@ ${searches.length ? searches.map((q, i) => (i+1) + ") " + q).join("\\n\\n") : "(
       const tema = {{ (out.tema_principal or "")|tojson }};
       const resumo = {{ (out.resumo or "")|tojson }};
 
-      const pergunta = {{ out.pergunta|tojson }};
+      const pergunta = {{ (out.pergunta or "")|tojson }};
       const perguntaObj = {{ (out.pergunta_objetiva or "")|tojson }};
 
       const normas = {{ (out.fundamentos_normas or [])|tojson }};
@@ -220,7 +245,7 @@ SÍNTESE
 ${resumo || "(não identificada)"}
 
 PRA PESQUISAR
-Pergunta: ${perguntaObj || pergunta}
+Pergunta: ${perguntaObj || pergunta || "(—)"}
 Palavras-chave: ${kws.length ? kws.join(", ") : "(—)"}
 ${searches.length ? "\\nPesquisas prontas:\\n" + searches.map((q,i)=> (i+1)+") "+q).join("\\n\\n") : ""}
 
