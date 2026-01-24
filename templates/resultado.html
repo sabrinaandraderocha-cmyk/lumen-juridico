@@ -17,7 +17,9 @@
 
       <a class="btn secondary" href="{{ url_for('home') }}">Nova análise</a>
       <a class="btn secondary" href="{{ url_for('biblioteca') }}">Biblioteca</a>
-      <a class="btn secondary" href="{{ url_for('glossario') }}">Glossário</a>
+
+      {# glossário agora abre o STF diretamente #}
+      <a class="btn secondary" href="{{ url_for('glossario') }}">Glossário (STF)</a>
     </div>
 
     {% if out.alerta %}
@@ -27,14 +29,16 @@
     {% endif %}
   </section>
 
-  {# ✅ Confiabilidade (mantém, mas é “compacta”) #}
+  {# ✅ CONFIABILIDADE — explicado pro usuário #}
   {% if out.confianca %}
     <section class="card" style="margin-top:14px;">
       <div class="row" style="justify-content:space-between; align-items:center; margin-top:0;">
         <div>
           <h2 style="margin:0;">Confiabilidade</h2>
           <p class="muted" style="margin-top:6px;">
-            Quanto mais fatos, pedido e resultado, mais precisa fica a síntese.
+            <strong>O que é isso?</strong> É um indicador automático de <strong>completude do texto</strong>
+            (se tem fatos, pedido, resultado e referências). Ajuda a saber se a síntese ficou “cirúrgica”.
+            <br><span class="muted"><strong>Não</strong> é julgamento do mérito e <strong>não</strong> diz “quem tem razão”.</span>
           </p>
         </div>
         <span class="pill">
@@ -48,18 +52,21 @@
 
       {% if out.confianca.motivos and out.confianca.motivos|length > 0 %}
         <details style="margin-top:10px;">
-          <summary>Por que não ficou mais alta?</summary>
+          <summary>Como melhorar a confiabilidade?</summary>
           <ul style="margin-top:10px;">
             {% for m in out.confianca.motivos %}
               <li class="muted">{{ m }}</li>
             {% endfor %}
           </ul>
+          <p class="muted" style="margin-top:8px;">
+            Dica: inclua o trecho do <strong>dispositivo</strong> (resultado) e o <strong>pedido</strong>.
+          </p>
         </details>
       {% endif %}
     </section>
   {% endif %}
 
-  {# ✅ Atalhos recomendados #}
+  {# ✅ atalhos recomendados #}
   {% if out.sugestoes and out.sugestoes|length > 0 %}
     <section class="card" style="margin-top:14px;">
       <h2>Atalhos recomendados</h2>
@@ -74,7 +81,7 @@
     </section>
   {% endif %}
 
-  {# ✅ Palavras-chave (mantém) #}
+  {# ✅ palavras-chave #}
   {% if out.keywords and out.keywords|length > 0 %}
     <section class="card" style="margin-top:14px;">
       <h2>Palavras-chave</h2>
@@ -96,7 +103,7 @@
     </section>
   {% endif %}
 
-  {# ✅ PRINCIPAL: 3 cards “essenciais” #}
+  {# ✅ ESSENCIAL: Síntese + Tese #}
   <section class="grid2" style="margin-top:14px;">
     <div class="card">
       <h2>Síntese</h2>
@@ -141,7 +148,7 @@
     </div>
   </section>
 
-  {# ✅ Fundamentos (normas + precedentes) em um bloco só #}
+  {# ✅ Fundamentos (normas + precedentes) — você disse que está excelente (mantido) #}
   <section class="card" style="margin-top:14px;">
     <h2>Fundamentos</h2>
 
@@ -170,7 +177,7 @@
     </p>
   </section>
 
-  {# ✅ Para usar / Para pesquisar (mais funcional, menos “telas”) #}
+  {# ✅ Para pesquisar / Para usar — simples e funcional #}
   <section class="grid2" style="margin-top:14px;">
     <div class="card">
       <h2>Para pesquisar</h2>
@@ -185,9 +192,15 @@
         </p>
       {% endif %}
 
+      <p class="muted" style="margin-top:10px;">
+        Pesquisa oficial do STF:
+        <a href="https://portal.stf.jus.br/textos/verTexto.asp?servico=CartaServicosJurisdicionais&pagina=jurisprudenciaPesquisaJurisprudencia"
+           target="_blank" rel="noopener noreferrer">abrir página de pesquisa de jurisprudência</a>.
+      </p>
+
       {% if out.queries_juris and out.queries_juris|length > 0 %}
         <p class="muted" style="margin-top:10px;">
-          <strong>Pesquisas prontas:</strong> copie e cole no STF/STJ/TJ ou Google.
+          <strong>Pesquisas prontas:</strong> copie e cole no STF/STJ/TJ ou no Google.
         </p>
         <ol style="margin-top:10px;">
           {% for q in out.queries_juris %}
@@ -225,72 +238,58 @@
     </div>
   </section>
 
-  {# ✅ Glossário (opcional, compacto) #}
-  {% if out.glossario_hits and out.glossario_hits|length > 0 %}
-    <section class="card" style="margin-top:14px;">
-      <div class="row" style="justify-content:space-between; align-items:flex-end; gap:10px; flex-wrap:wrap; margin-top:0;">
-        <div>
-          <h2 style="margin:0;">Termos jurídicos</h2>
-          <p class="muted" style="margin-top:6px;">
-            Definições do Glossário do STF.
-          </p>
-        </div>
-        <div>
-          <a class="btn secondary" href="{{ url_for('glossario') }}">Abrir glossário</a>
-        </div>
-      </div>
+  {# ✅ DETALHES — só aparece se tiver algo útil #}
+  {% set has_details =
+      (out.ementa and out.ementa|length > 0) or
+      (out.relatorio and out.relatorio|length > 0) or
+      (out.fundamentacao and out.fundamentacao|length > 0) or
+      (out.dispositivo and out.dispositivo|length > 0) or
+      (texto and texto|length > 0)
+  %}
 
-      <div style="margin-top:10px; display:grid; grid-template-columns:1fr; gap:10px;">
-        {% for it in out.glossario_hits %}
-          <details class="card" style="margin:0;">
-            <summary style="cursor:pointer;">
-              <strong>{{ it.term }}</strong>
-              <span class="muted"> — ver definição</span>
-            </summary>
-            <div style="margin-top:10px; line-height:1.6;">
-              {{ it.definition }}
-            </div>
-          </details>
-        {% endfor %}
-      </div>
+  {% if has_details %}
+    <section class="card" style="margin-top:14px;">
+      <h2>Detalhes (opcional)</h2>
+      <p class="muted" style="margin-top:6px;">
+        Útil quando você quer conferir o trecho exato para citar em peça, fichamento ou estudo.
+      </p>
+
+      {% if out.ementa %}
+        <details style="margin-top:10px;">
+          <summary>Ver ementa / trecho-base</summary>
+          <pre class="pre" style="margin-top:10px;">{{ out.ementa }}</pre>
+        </details>
+      {% endif %}
+
+      {% if out.relatorio %}
+        <details style="margin-top:10px;">
+          <summary>Ver relatório / contexto</summary>
+          <pre class="pre" style="margin-top:10px;">{{ out.relatorio }}</pre>
+        </details>
+      {% endif %}
+
+      {% if out.fundamentacao %}
+        <details style="margin-top:10px;">
+          <summary>Ver fundamentação (trecho)</summary>
+          <pre class="pre" style="margin-top:10px;">{{ out.fundamentacao }}</pre>
+        </details>
+      {% endif %}
+
+      {% if out.dispositivo %}
+        <details style="margin-top:10px;">
+          <summary>Ver dispositivo / resultado</summary>
+          <pre class="pre" style="margin-top:10px;">{{ out.dispositivo }}</pre>
+        </details>
+      {% endif %}
+
+      {% if texto %}
+        <details style="margin-top:10px;">
+          <summary>Ver texto original (analisado)</summary>
+          <pre class="pre" style="margin-top:10px;">{{ texto }}</pre>
+        </details>
+      {% endif %}
     </section>
   {% endif %}
-
-  {# ✅ Detalhes (tudo o que é “extra” vai pra cá) #}
-  <section class="card" style="margin-top:14px;">
-    <h2>Detalhes</h2>
-
-    <details style="margin-top:10px;">
-      <summary>Ver ementa / trecho-base</summary>
-      <pre class="pre" style="margin-top:10px;">{{ out.ementa }}</pre>
-    </details>
-
-    {% if out.relatorio %}
-      <details style="margin-top:10px;">
-        <summary>Ver relatório / contexto</summary>
-        <pre class="pre" style="margin-top:10px;">{{ out.relatorio }}</pre>
-      </details>
-    {% endif %}
-
-    {% if out.fundamentacao %}
-      <details style="margin-top:10px;">
-        <summary>Ver fundamentação (trecho)</summary>
-        <pre class="pre" style="margin-top:10px;">{{ out.fundamentacao }}</pre>
-      </details>
-    {% endif %}
-
-    {% if out.dispositivo %}
-      <details style="margin-top:10px;">
-        <summary>Ver dispositivo / resultado</summary>
-        <pre class="pre" style="margin-top:10px;">{{ out.dispositivo }}</pre>
-      </details>
-    {% endif %}
-
-    <details style="margin-top:10px;">
-      <summary>Ver texto original (analisado)</summary>
-      <pre class="pre" style="margin-top:10px;">{{ texto }}</pre>
-    </details>
-  </section>
 
   <textarea id="copyBuffer" style="position:absolute; left:-9999px; top:-9999px;"></textarea>
 
@@ -341,7 +340,6 @@ ${searches.length ? searches.map((q, i) => (i+1) + ") " + q).join("\\n\\n") : "(
       const checklist = {{ (out.checklist or [])|tojson }};
 
       const conf = {{ (out.confianca or {})|tojson }};
-      const gloss = {{ (out.glossario_hits or [])|tojson }};
 
       const relatorio = {{ (out.relatorio or "")|tojson }};
       const fundamentacao = {{ (out.fundamentacao or "")|tojson }};
@@ -356,7 +354,7 @@ ${searches.length ? searches.map((q, i) => (i+1) + ") " + q).join("\\n\\n") : "(
 `LUMEN JURÍDICO — RELATÓRIO
 Data/hora: {{ now.strftime("%d/%m/%Y %H:%M") }}
 
-CONFIABILIDADE
+CONFIABILIDADE (completude do texto)
 Nível: ${(conf && conf.nivel) ? conf.nivel.toUpperCase() : "—"} • Score: ${(conf && conf.score) ? conf.score : "—"}%
 
 PALAVRAS-CHAVE
@@ -387,9 +385,6 @@ ${controv.length ? controv.map(x => "- " + x).join("\\n") : "- (não identificad
 
 8) Ementa / trecho-base
 ${ementa}
-
-9) Termos (Glossário STF)
-${gloss.length ? gloss.map(x => "- " + x.term + ": " + x.definition).join("\\n") : "(nenhum termo detectado)"}
 
 DETALHES (quando existirem)
 RELATÓRIO/CONTEXTO:
