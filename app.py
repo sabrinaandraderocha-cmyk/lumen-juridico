@@ -584,7 +584,7 @@ def get_text_from_upload(file):
             pass
 
 # =========================
-# ERROS (para não “cair tudo” e mostrar o motivo)
+# ERROS (sem recursão)
 # =========================
 @app.errorhandler(TemplateNotFound)
 def handle_template_not_found(e):
@@ -600,15 +600,15 @@ def handle_template_not_found(e):
     </body></html>
     """, 500
 
-@app.errorhandler(Exception)
-def handle_any_exception(e):
-    return f"""
+@app.errorhandler(500)
+def handle_500(e):
+    return """
     <html><head><meta charset="utf-8"><title>Erro • Lumen Jurídico</title></head>
     <body style="font-family:Inter,Arial,sans-serif; background:#f4f6fa; margin:0;">
       <div style="max-width:860px; margin:0 auto; padding:24px;">
         <h1>Erro interno</h1>
         <p>Ocorreu um erro ao processar sua solicitação.</p>
-        <pre style="background:#fff;border:1px solid #d8dee9;padding:12px;border-radius:10px;white-space:pre-wrap;">{str(e)}</pre>
+        <p style="color:#6b7280;">Abra os logs do Render para ver o erro completo.</p>
         <p style="margin-top:12px;"><a href="/" style="color:#1e3a8a;text-decoration:none;">Tentar voltar</a></p>
       </div>
     </body></html>
@@ -654,7 +654,6 @@ def biblioteca():
     try:
         return render_template("biblioteca.html", links=LIBRARY_LINKS)
     except TemplateNotFound:
-        # fallback simples se o template não subiu no deploy
         items = "".join([
             f'<li style="margin:10px 0;">'
             f'<a href="{i["url"]}" target="_blank" rel="noopener noreferrer" '
