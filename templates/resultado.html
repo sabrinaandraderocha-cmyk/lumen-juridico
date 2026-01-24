@@ -3,9 +3,9 @@
 
 {% block content %}
   <section class="hero">
-    <h1>Leitura estruturada</h1>
+    <h1>Resultado</h1>
     <p class="muted">
-      Gerado em {{ now.strftime("%d/%m/%Y %H:%M") }} • revise e ajuste (o app é um “primeiro rascunho”).
+      Gerado em {{ now.strftime("%d/%m/%Y %H:%M") }} • revise antes de usar em estudo/peça.
     </p>
 
     <div class="row" style="margin-top:12px;">
@@ -15,7 +15,7 @@
     </div>
 
     {% if out.alerta %}
-      <div class="card" style="margin-top:14px; border-color: #f59e0b; background: #fffbeb;">
+      <div class="card" style="margin-top:14px; border-color:#f59e0b; background:#fffbeb;">
         <strong>Aviso:</strong> {{ out.alerta }}
       </div>
     {% endif %}
@@ -37,7 +37,7 @@
         {% endfor %}
       </div>
       <p class="muted" style="margin-top:10px;">
-        Sugestão: use essas palavras para buscar jurisprudência semelhante e montar referências.
+        Sugestão: use estas palavras para buscar julgados semelhantes e conferir a base normativa.
       </p>
     </section>
   {% endif %}
@@ -45,29 +45,40 @@
   <section class="grid2">
     <div class="card">
       <h2>Pergunta jurídica</h2>
-      <p>{{ out.pergunta }}</p>
+      <p style="font-size:16px; line-height:1.5;">
+        <strong>{{ out.pergunta }}</strong>
+      </p>
+      <p class="muted" style="margin-top:10px;">
+        Dica: transforme em “É possível X em Y?” para pesquisa de jurisprudência.
+      </p>
     </div>
 
     <div class="card">
       <h2>Tese (núcleo decisório)</h2>
 
+      {# Mostra regra/exceção quando existir; senão, mostra tese curta #}
       {% if out.tese_regra %}
-        <p><strong>Regra:</strong> {{ out.tese_regra }}</p>
+        <p style="line-height:1.55;"><strong>Regra:</strong> {{ out.tese_regra }}</p>
         {% if out.tese_excecao %}
-          <p style="margin-top:10px;"><strong>Ressalva/Exceção:</strong> {{ out.tese_excecao }}</p>
+          <p style="margin-top:10px; line-height:1.55;"><strong>Ressalva/Exceção:</strong> {{ out.tese_excecao }}</p>
         {% endif %}
       {% else %}
-        <p>{{ out.tese }}</p>
+        <p style="line-height:1.55;">{{ out.tese }}</p>
       {% endif %}
 
+      <details style="margin-top:12px;">
+        <summary>Ver tese completa</summary>
+        <pre class="pre" style="margin-top:10px;">{{ out.tese }}</pre>
+      </details>
+
       <p class="muted" style="margin-top:10px;">
-        Dica: transforme esta tese em uma frase “Se… então…” para usar em peça ou estudo.
+        Dica: escreva a tese como “Se… então…” para usar em peça, resumo ou fichamento.
       </p>
     </div>
 
     <div class="card">
       <h2>Fundamentos — normas</h2>
-      <ul>
+      <ul style="margin-top:10px;">
         {% for f in out.fundamentos_normas %}
           <li>{{ f }}</li>
         {% endfor %}
@@ -79,7 +90,7 @@
 
     <div class="card">
       <h2>Fundamentos — jurisprudência/temas</h2>
-      <ul>
+      <ul style="margin-top:10px;">
         {% for j in out.fundamentos_juris %}
           <li>{{ j }}</li>
         {% endfor %}
@@ -90,21 +101,27 @@
     </div>
 
     <div class="card">
-      <h2>Como isso cai na prática/estudo</h2>
+      <h2>Aplicação prática</h2>
       <p>{{ out.aplicacao }}</p>
+      <p class="muted" style="margin-top:10px;">
+        Sugestão: transforme isso em 1 parágrafo final de resumo (ex.: “o julgado afirma que…”).
+      </p>
     </div>
 
     <div class="card">
       <h2>Ementa / trecho-base</h2>
-      <pre class="pre">{{ out.ementa }}</pre>
+      <details open>
+        <summary>Ver/ocultar</summary>
+        <pre class="pre" style="margin-top:10px;">{{ out.ementa }}</pre>
+      </details>
     </div>
   </section>
 
   <section class="card">
-    <h2>Texto original (o que foi analisado)</h2>
+    <h2>Texto original (analisado)</h2>
     <details>
       <summary>Ver/ocultar</summary>
-      <pre class="pre">{{ texto }}</pre>
+      <pre class="pre" style="margin-top:10px;">{{ texto }}</pre>
     </details>
   </section>
 
@@ -129,7 +146,6 @@
 
       const texto =
 `LUMEN JURÍDICO — RELATÓRIO DE LEITURA
-
 Data/hora: {{ now.strftime("%d/%m/%Y %H:%M") }}
 
 PALAVRAS-CHAVE
@@ -154,15 +170,12 @@ ${aplicacao}
 ${ementa}
 `;
 
-      const buf = document.getElementById("copyBuffer");
-      buf.value = texto;
-      buf.select();
-      buf.setSelectionRange(0, 999999);
-
-      // tenta clipboard moderno; cai pro execCommand se necessário
       if (navigator.clipboard && navigator.clipboard.writeText){
         navigator.clipboard.writeText(texto).then(() => alert("Relatório copiado ✅"));
       } else {
+        const buf = document.getElementById("copyBuffer");
+        buf.value = texto;
+        buf.select();
         document.execCommand("copy");
         alert("Relatório copiado ✅");
       }
