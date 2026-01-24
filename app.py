@@ -8,6 +8,7 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from jinja2 import TemplateNotFound
 
 # Leitura de arquivos
 from pypdf import PdfReader
@@ -167,12 +168,8 @@ def pick_keywords(text: str, k=8):
     counts = Counter(tokens)
     return [w for w, _ in counts.most_common(k)]
 
-# ✅ NOVO: normas/artigos com ORIGEM (CP/CPP/CPC/CF etc.)
+# ✅ Normas/artigos com ORIGEM (CP/CPP/CPC/CF etc.)
 def extract_legal_citations(text: str, limit=14):
-    """
-    Extrai referências e tenta atribuir a ORIGEM (CP/CPP/CPC/CF/CLT/CDC/CTN etc.)
-    Ex.: "art. 121 — Código Penal (CP)", "art. 319 — Código de Processo Penal (CPP)"
-    """
     t = text or ""
 
     CODE_NAME = {
@@ -235,12 +232,7 @@ def extract_legal_citations(text: str, limit=14):
     for m in art_pat.finditer(t):
         raw = re.sub(r"\s+", " ", m.group(0)).strip()
         code = infer_code_by_window(m.start(), m.end())
-
-        if code:
-            label = CODE_NAME.get(code, code)
-            pretty = f"{raw} — {label}"
-        else:
-            pretty = raw
+        pretty = f"{raw} — {CODE_NAME.get(code, code)}" if code else raw
 
         key = pretty.lower()
         if key not in found_low:
@@ -323,7 +315,6 @@ def pick_best_question(text: str, fallback_base: str) -> str:
 
 def suggest_library_links(text: str, max_items: int = 7):
     t = (text or "").lower()
-
     patterns = [
         (r"\bcf\b|\bcf/88\b|constitui", ["CF_HTML"]),
         (r"\bcpc\b|processo civil|art\.\s*1\.?0?13|art\.\s*927", ["CPC"]),
@@ -373,8 +364,7 @@ def build_search_queries(pergunta: str, tese: str, keywords: list[str], max_item
     anchors = []
     for a in [
         "habeas corpus", "prisão preventiva", "excesso de prazo", "fundamentação",
-        "contemporaneidade", "medidas cautelares", "art. 312", "art. 319",
-        "tutela de urgência", "probabilidade do direito", "perigo de dano",
+        "contemporaneidade", "medidas cautelares", "tutela de urgência",
         "dano moral", "responsabilidade civil", "ônus da prova", "cerceamento"
     ]:
         if a in low:
@@ -427,35 +417,35 @@ def build_action_checklist(text: str) -> list[str]:
     if "prisão preventiva" in low or "habeas" in low or "hc" in low:
         items.extend([
             "Identifique a medida: é HC? Revogação/substituição de preventiva? Relaxamento?",
-            "Qual é o fundamento apontado (art. 312 do CPP)? Há fatos concretos ou é genérico?",
-            "Contemporaneidade: o fato é recente? A decisão explica por que a cautelar é necessária agora?",
-            "Excesso de prazo: qual marco inicial, qual prazo e qual justificativa do juízo/tribunal?",
-            "Medidas diversas (art. 319 do CPP): o julgador analisou e justificou por que não aplicou?",
-            "Dispositivo: qual foi o resultado (concedeu/negou/parcial)? Em quais termos?"
+            "Fundamento (CPP): há fatos concretos ou fundamentação genérica?",
+            "Contemporaneidade: a decisão explica por que a cautelar é necessária agora?",
+            "Excesso de prazo: marco inicial, prazo e justificativa do juízo/tribunal.",
+            "Medidas diversas (art. 319 do CPP): analisou e justificou por que não aplicou?",
+            "Dispositivo: concedeu/negou/parcial? Em quais termos?"
         ])
 
     if "tutela" in low or "urgência" in low:
         items.extend([
-            "Qual tutela foi pedida (urgência/evidência)? O pedido está claro?",
+            "Tipo de tutela: urgência ou evidência? O pedido está claro?",
             "Probabilidade do direito: quais fatos/provas sustentam?",
             "Perigo de dano: qual risco imediato foi demonstrado?",
-            "Reversibilidade: a decisão comenta risco de irreversibilidade?",
-            "Dispositivo: deferiu/indeferiu? Houve condicionantes (caução/multa/limites)?"
+            "Reversibilidade: há risco de irreversibilidade?",
+            "Dispositivo: deferiu/indeferiu? Com quais limites?"
         ])
 
     if "dano moral" in low or "responsabilidade" in low:
         items.extend([
-            "Qual é o fato gerador do dano? Está descrito com clareza?",
-            "Nexo causal: o texto conecta conduta e dano ou só afirma?",
+            "Fato gerador: está descrito com clareza?",
+            "Nexo causal: o texto conecta conduta e dano?",
             "Excludentes: culpa exclusiva, fortuito/força maior, exercício regular?",
-            "Quantum: quais critérios o julgador usa (proporcionalidade, precedentes, gravidade)?",
-            "Dispositivo: condenou/absolveu? Quais valores/obrigações?"
+            "Quantum: critérios e precedentes comparáveis.",
+            "Dispositivo: condenou/absolveu? Valores/obrigações?"
         ])
 
     if not items:
         items = [
             "Qual é a controvérsia central (pergunta jurídica)?",
-            "Quais fatos o julgador tratou como relevantes (e quais ignorou)?",
+            "Quais fatos o julgador tratou como relevantes?",
             "Qual norma foi determinante (não só citada)?",
             "Qual precedente/tema/súmula foi aplicado (ou afastado) e por quê?",
             "Qual foi o resultado (dispositivo) e seus limites?"
@@ -496,27 +486,6 @@ def build_main_theme(keywords: list[str], fundamentos_normas: list[str], fundame
 def build_output(text: str):
     text = normalize(text)
 
-    relatorio = extract_block(
-        text,
-        start_patterns=[r"\brelat[oó]rio\b", r"\bs[ií]ntese\b", r"\bcuidam os autos\b", r"\btrata-se\b"],
-        stop_patterns=[r"\bfundamenta[cç][aã]o\b", r"\bm[eé]rito\b", r"\bvoto\b", r"\bdispositivo\b", r"\bdecido\b"],
-        max_chars=2400
-    )
-
-    fundamentacao = extract_block(
-        text,
-        start_patterns=[r"\bfundamenta[cç][aã]o\b", r"\bm[eé]rito\b", r"\braz[oõ]es\b", r"\bconsidera[cç][aã]o\b"],
-        stop_patterns=[r"\bdispositivo\b", r"\bdecido\b", r"\bisto posto\b", r"\bante o exposto\b"],
-        max_chars=2600
-    )
-
-    dispositivo = extract_block(
-        text,
-        start_patterns=[r"\bdispositivo\b", r"\bdecido\b", r"\bisto posto\b", r"\bante o exposto\b"],
-        stop_patterns=[r"\bpublique-se\b", r"\bintime-se\b", r"\btr[aâ]nsito\b"],
-        max_chars=1400
-    )
-
     ementa = extract_block(
         text,
         start_patterns=[r"\bementa\b"],
@@ -524,12 +493,11 @@ def build_output(text: str):
         max_chars=1700
     ) or text[:900].strip()
 
-    base_for_keywords = ementa or fundamentacao or relatorio or text[:1200]
+    base_for_keywords = ementa or text[:1200]
     keywords = pick_keywords(base_for_keywords, k=8)
 
     pergunta = pick_best_question(text, base_for_keywords)
 
-    # (tese é usada apenas para ajudar pesquisas)
     tese = extract_block(
         text,
         start_patterns=[r"\btese\b", r"\bconclus[aã]o\b", r"\bdecide-se\b", r"\bdispositivo\b", r"\bante o exposto\b", r"\bisto posto\b"],
@@ -537,22 +505,19 @@ def build_output(text: str):
         max_chars=1600
     )
     if not tese:
-        src = dispositivo or ementa or fundamentacao or text[:900]
+        src = ementa or text[:900]
         sents = split_sentences(src)
         tese = " ".join(sents[:3]) if sents else (src[:400] if src else "")
 
-    # ✅ aqui já sai com origem (CP/CPP/CF etc.)
     fundamentos_normas = extract_legal_citations(text, limit=14) or ["(não identificado automaticamente)"]
     fundamentos_juris = extract_jurisprudencia_refs(text, limit=12) or ["(não identificado automaticamente)"]
 
-    resumo_src = relatorio or ementa or text[:1200]
-    resumo = " ".join(split_sentences(resumo_src)[:6]).strip()
+    resumo = " ".join(split_sentences(ementa)[:6]).strip()
 
     pesquisas = build_search_queries(pergunta, tese, keywords, max_items=4)
     improved_q = improve_user_question(request.form.get("texto", "") if request else "", keywords)
 
     alerta = analyze_quality(text)
-
     checklist = build_action_checklist(text)
     sugestoes = suggest_library_links(text, max_items=7)
 
@@ -561,25 +526,17 @@ def build_output(text: str):
 
     return {
         "tema_principal": tema_principal,
-
         "pergunta": (pergunta or "").strip(),
         "pergunta_objetiva": improved_q.get("pergunta_objetiva", ""),
-
         "fundamentos_normas": fundamentos_normas,
         "fundamentos_juris": fundamentos_juris,
-
         "keywords": keywords[:8],
         "queries_juris": pesquisas,
-
         "checklist": checklist,
-
         "resumo": resumo,
         "alerta": alerta,
-
         "sugestoes": sugestoes,
-
         "termos_importantes": termos_importantes,
-
         "glossario_source": GLOSSARY_URL,
     }
 
@@ -627,6 +584,37 @@ def get_text_from_upload(file):
             pass
 
 # =========================
+# ERROS (para não “cair tudo” e mostrar o motivo)
+# =========================
+@app.errorhandler(TemplateNotFound)
+def handle_template_not_found(e):
+    return f"""
+    <html><head><meta charset="utf-8"><title>Erro • Lumen Jurídico</title></head>
+    <body style="font-family:Inter,Arial,sans-serif; background:#f4f6fa; margin:0;">
+      <div style="max-width:860px; margin:0 auto; padding:24px;">
+        <h1>Erro de template</h1>
+        <p>O servidor não encontrou um arquivo de template.</p>
+        <pre style="background:#fff;border:1px solid #d8dee9;padding:12px;border-radius:10px;white-space:pre-wrap;">{str(e)}</pre>
+        <p style="margin-top:12px;"><a href="/" style="color:#1e3a8a;text-decoration:none;">Tentar voltar</a></p>
+      </div>
+    </body></html>
+    """, 500
+
+@app.errorhandler(Exception)
+def handle_any_exception(e):
+    return f"""
+    <html><head><meta charset="utf-8"><title>Erro • Lumen Jurídico</title></head>
+    <body style="font-family:Inter,Arial,sans-serif; background:#f4f6fa; margin:0;">
+      <div style="max-width:860px; margin:0 auto; padding:24px;">
+        <h1>Erro interno</h1>
+        <p>Ocorreu um erro ao processar sua solicitação.</p>
+        <pre style="background:#fff;border:1px solid #d8dee9;padding:12px;border-radius:10px;white-space:pre-wrap;">{str(e)}</pre>
+        <p style="margin-top:12px;"><a href="/" style="color:#1e3a8a;text-decoration:none;">Tentar voltar</a></p>
+      </div>
+    </body></html>
+    """, 500
+
+# =========================
 # Rotas
 # =========================
 @app.get("/")
@@ -663,7 +651,34 @@ def analisar():
 
 @app.get("/biblioteca")
 def biblioteca():
-    return render_template("biblioteca.html", links=LIBRARY_LINKS)
+    try:
+        return render_template("biblioteca.html", links=LIBRARY_LINKS)
+    except TemplateNotFound:
+        # fallback simples se o template não subiu no deploy
+        items = "".join([
+            f'<li style="margin:10px 0;">'
+            f'<a href="{i["url"]}" target="_blank" rel="noopener noreferrer" '
+            f'style="color:#1e3a8a; text-decoration:none; font-weight:600;">{i["titulo"]}</a>'
+            f' <span style="font-size:12px; padding:4px 8px; border:1px solid #d8dee9; '
+            f'border-radius:999px; background:#f9fafb; margin-left:8px;">{i["tipo"]}</span>'
+            f'</li>'
+            for i in LIBRARY_LINKS
+        ])
+        return f"""
+        <html><head><meta charset="utf-8"><title>Biblioteca • Lumen Jurídico</title></head>
+        <body style="font-family:Inter,Arial,sans-serif; background:#f4f6fa; margin:0;">
+          <div style="max-width:1020px; margin:0 auto; padding:24px;">
+            <h1 style="margin:0 0 10px 0;">Biblioteca</h1>
+            <p style="color:#6b7280; margin:0 0 16px 0;">Links oficiais e materiais úteis para consulta.</p>
+            <div style="background:#fff; border:1px solid #d8dee9; border-radius:14px; padding:20px;">
+              <ul style="margin:0; padding-left:18px;">{items}</ul>
+            </div>
+            <p style="margin-top:14px;">
+              <a href="/" style="color:#1e3a8a; text-decoration:none;">← Voltar</a>
+            </p>
+          </div>
+        </body></html>
+        """
 
 @app.get("/glossario")
 def glossario():
