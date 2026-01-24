@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "base.html" %} 
 {% block title %}Resultado • Lumen Jurídico{% endblock %}
 
 {% block content %}
@@ -20,6 +20,24 @@
       </div>
     {% endif %}
   </section>
+
+  {# ✅ NOVO: atalhos recomendados com base no texto analisado #}
+  {% if out.sugestoes and out.sugestoes|length > 0 %}
+    <section class="card" style="margin-top:14px;">
+      <h2>Atalhos recomendados (Biblioteca)</h2>
+      <ul class="links">
+        {% for item in out.sugestoes %}
+          <li>
+            <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">{{ item.titulo }}</a>
+            <span class="pill">{{ item.tipo }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="muted" style="margin-top:10px;">
+        Sugestão: abra os textos oficiais para conferir o dispositivo citado e contextualizar a tese.
+      </p>
+    </section>
+  {% endif %}
 
   {% if out.keywords and out.keywords|length > 0 %}
     <section class="card">
@@ -56,7 +74,7 @@
     <div class="card">
       <h2>Tese (núcleo decisório)</h2>
 
-      {# Mostra regra/exceção quando existir; senão, mostra tese curta #}
+      {# Mostra regra/exceção quando existir; senão, mostra tese #}
       {% if out.tese_regra %}
         <p style="line-height:1.55;"><strong>Regra:</strong> {{ out.tese_regra }}</p>
         {% if out.tese_excecao %}
