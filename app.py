@@ -167,26 +167,111 @@ def pick_keywords(text: str, k=8):
     counts = Counter(tokens)
     return [w for w, _ in counts.most_common(k)]
 
-def extract_legal_citations(text: str, limit=12):
-    patterns = [
-        r"\bart\.?\s*\d+[a-zA-Zº°]*\b(?:\s*,\s*§\s*\d+º?)?(?:\s*,\s*inc\.\s*[ivxlcdm]+)?",
-        r"\blei\s*n[ºo]\s*\d[\d\.\-]*\s*(?:/|\s*de\s*)\s*\d{2,4}\b",
-        r"\bdecreto-lei\s*n[ºo]\s*\d[\d\.\-]*\b",
-        r"\bconstitui[cç][aã]o\s*federal\b|\bCF/88\b|\bCF\b",
-        r"\bCPC\b|\bCPP\b|\bCP\b|\bCLT\b|\bCDC\b|\bCTN\b"
-    ]
+# ✅ NOVO: normas/artigos com ORIGEM (CP/CPP/CPC/CF etc.)
+def extract_legal_citations(text: str, limit=14):
+    """
+    Extrai referências e tenta atribuir a ORIGEM (CP/CPP/CPC/CF/CLT/CDC/CTN etc.)
+    Ex.: "art. 121 — Código Penal (CP)", "art. 319 — Código de Processo Penal (CPP)"
+    """
+    t = text or ""
+
+    CODE_NAME = {
+        "CF": "Constituição Federal (CF/88)",
+        "CF/88": "Constituição Federal (CF/88)",
+        "CP": "Código Penal (CP)",
+        "CPP": "Código de Processo Penal (CPP)",
+        "CPC": "Código de Processo Civil (CPC)",
+        "CLT": "CLT",
+        "CDC": "Código de Defesa do Consumidor (CDC)",
+        "CTN": "Código Tributário Nacional (CTN)",
+    }
+
+    global_codes = []
+    for code in ["CF/88", "CF", "CPP", "CP", "CPC", "CLT", "CDC", "CTN"]:
+        if re.search(rf"\b{re.escape(code)}\b", t):
+            if code not in global_codes:
+                global_codes.append(code)
+
+    if re.search(r"c[oó]digo\s+penal", t, flags=re.I) and "CP" not in global_codes:
+        global_codes.append("CP")
+    if re.search(r"c[oó]digo\s+de\s+processo\s+penal", t, flags=re.I) and "CPP" not in global_codes:
+        global_codes.append("CPP")
+    if re.search(r"c[oó]digo\s+de\s+processo\s+civil", t, flags=re.I) and "CPC" not in global_codes:
+        global_codes.append("CPC")
+    if re.search(r"constitui[cç][aã]o\s+federal", t, flags=re.I) and "CF/88" not in global_codes:
+        global_codes.append("CF/88")
+
+    art_pat = re.compile(
+        r"\bart\.?\s*(\d+[a-zA-Zº°]*)"
+        r"(?:(?:\s*,\s*§\s*\d+º?)|(?:\s*,\s*inc\.\s*[ivxlcdm]+)|(?:\s*,\s*[IVXLCDM]+))*",
+        flags=re.I
+    )
+
+    def infer_code_by_window(start: int, end: int) -> str:
+        window = t[max(0, start-140): min(len(t), end+140)]
+        w = window.lower()
+
+        if re.search(r"\bcpp\b", w): return "CPP"
+        if re.search(r"\bcp\b", w): return "CP"
+        if re.search(r"\bcpc\b", w): return "CPC"
+        if re.search(r"\bclt\b", w): return "CLT"
+        if re.search(r"\bcdc\b", w): return "CDC"
+        if re.search(r"\bctn\b", w): return "CTN"
+        if re.search(r"\bcf/88\b|\bcf\b", w): return "CF/88"
+
+        if "código penal" in w: return "CP"
+        if "processo penal" in w: return "CPP"
+        if "processo civil" in w: return "CPC"
+        if "constituição federal" in w: return "CF/88"
+
+        if len(global_codes) == 1:
+            return global_codes[0]
+
+        return ""
+
     found = []
     found_low = set()
-    for pat in patterns:
-        for m in re.finditer(pat, text, flags=re.I):
-            snippet = re.sub(r"\s+", " ", m.group(0).strip())
-            key = snippet.lower()
-            if snippet and key not in found_low:
-                found.append(snippet)
-                found_low.add(key)
+
+    for m in art_pat.finditer(t):
+        raw = re.sub(r"\s+", " ", m.group(0)).strip()
+        code = infer_code_by_window(m.start(), m.end())
+
+        if code:
+            label = CODE_NAME.get(code, code)
+            pretty = f"{raw} — {label}"
+        else:
+            pretty = raw
+
+        key = pretty.lower()
+        if key not in found_low:
+            found.append(pretty)
+            found_low.add(key)
+        if len(found) >= limit:
+            break
+
+    extra_patterns = [
+        r"\blei\s*n[ºo]\s*\d[\d\.\-]*\s*(?:/|\s*de\s*)\s*\d{2,4}\b",
+        r"\bdecreto-lei\s*n[ºo]\s*\d[\d\.\-]*\b",
+    ]
+    for pat in extra_patterns:
+        for m in re.finditer(pat, t, flags=re.I):
+            s = re.sub(r"\s+", " ", m.group(0).strip())
+            if s and s.lower() not in found_low:
+                found.append(s)
+                found_low.add(s.lower())
             if len(found) >= limit:
-                return found
-    return found
+                break
+        if len(found) >= limit:
+            break
+
+    if not found:
+        for code in global_codes[:3]:
+            label = CODE_NAME.get(code, code)
+            if label.lower() not in found_low:
+                found.append(label)
+                found_low.add(label.lower())
+
+    return found[:limit]
 
 def extract_jurisprudencia_refs(text: str, limit=12):
     patterns = [
@@ -201,7 +286,7 @@ def extract_jurisprudencia_refs(text: str, limit=12):
     found = []
     found_low = set()
     for pat in patterns:
-        for m in re.finditer(pat, text, flags=re.I):
+        for m in re.finditer(pat, text or "", flags=re.I):
             s = re.sub(r"\s+", " ", m.group(0).strip())
             k = s.lower()
             if s and k not in found_low:
@@ -216,57 +301,7 @@ def analyze_quality(text: str):
     warnings = []
     if len(t) < 450:
         warnings.append("Texto muito curto: a estrutura tende a ficar genérica.")
-    has_numbers = bool(re.search(r"\d{2,}", t))
-    has_parties = bool(re.search(r"\b(autor|réu|ré|impetrante|paciente|apelante|agravante|recorrente)\b", t, flags=re.I))
-    has_request = bool(re.search(r"\b(pede|requer|postula|pleiteia|pretende|busca)\b", t, flags=re.I))
-    if not (has_numbers or has_parties or has_request):
-        warnings.append("Poucos elementos fáticos (partes/pedidos/números): a confiança da síntese cai.")
     return " ".join(warnings).strip()
-
-def confidence_score(text: str) -> dict:
-    t = (text or "")
-    score = 0
-    reasons = []
-
-    if len(t.strip()) >= 1200:
-        score += 25
-    elif len(t.strip()) >= 600:
-        score += 15
-    else:
-        score += 5
-        reasons.append("Pouco texto para estruturar com precisão.")
-
-    if re.search(r"\b(autor|réu|impetrante|paciente|apelante|agravante|recorrente)\b", t, flags=re.I):
-        score += 15
-    else:
-        reasons.append("Sem indicação clara de partes/processualidade.")
-
-    if re.search(r"\b(pede|requer|pleiteia|postula|pretende)\b", t, flags=re.I):
-        score += 15
-    else:
-        reasons.append("Sem pedido explícito.")
-
-    if re.search(r"\b(decide|defiro|indefiro|julgo|condeno|absolvo|nego provimento|dou provimento)\b", t, flags=re.I):
-        score += 20
-    else:
-        reasons.append("Sem dispositivo/resultado claramente identificável.")
-
-    if extract_legal_citations(t, limit=3):
-        score += 10
-    else:
-        reasons.append("Pouca referência normativa identificável.")
-
-    if extract_jurisprudencia_refs(t, limit=2):
-        score += 10
-
-    if score >= 70:
-        level = "alta"
-    elif score >= 45:
-        level = "média"
-    else:
-        level = "baixa"
-
-    return {"nivel": level, "score": min(score, 100), "motivos": reasons[:4]}
 
 def pick_best_question(text: str, fallback_base: str) -> str:
     candidates = [s for s in split_sentences(text) if s.endswith("?") and 15 <= len(s) <= 240]
@@ -494,7 +529,7 @@ def build_output(text: str):
 
     pergunta = pick_best_question(text, base_for_keywords)
 
-    # (mantemos tese para uso interno e para futuras melhorias)
+    # (tese é usada apenas para ajudar pesquisas)
     tese = extract_block(
         text,
         start_patterns=[r"\btese\b", r"\bconclus[aã]o\b", r"\bdecide-se\b", r"\bdispositivo\b", r"\bante o exposto\b", r"\bisto posto\b"],
@@ -506,7 +541,8 @@ def build_output(text: str):
         sents = split_sentences(src)
         tese = " ".join(sents[:3]) if sents else (src[:400] if src else "")
 
-    fundamentos_normas = extract_legal_citations(text, limit=12) or ["(não identificado automaticamente)"]
+    # ✅ aqui já sai com origem (CP/CPP/CF etc.)
+    fundamentos_normas = extract_legal_citations(text, limit=14) or ["(não identificado automaticamente)"]
     fundamentos_juris = extract_jurisprudencia_refs(text, limit=12) or ["(não identificado automaticamente)"]
 
     resumo_src = relatorio or ementa or text[:1200]
@@ -516,7 +552,6 @@ def build_output(text: str):
     improved_q = improve_user_question(request.form.get("texto", "") if request else "", keywords)
 
     alerta = analyze_quality(text)
-    conf = confidence_score(text)
 
     checklist = build_action_checklist(text)
     sugestoes = suggest_library_links(text, max_items=7)
@@ -540,7 +575,6 @@ def build_output(text: str):
 
         "resumo": resumo,
         "alerta": alerta,
-        "confianca": conf,
 
         "sugestoes": sugestoes,
 
