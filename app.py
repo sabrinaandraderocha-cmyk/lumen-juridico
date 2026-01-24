@@ -1,15 +1,10 @@
 import os
 import re
-import json
-import time
-import unicodedata
 from collections import Counter
-from datetime import datetime, timedelta
-from html.parser import HTMLParser
-from urllib.request import Request, urlopen
+from datetime import datetime
 
 from flask import (
-    Flask, render_template, request, redirect, url_for, flash, jsonify
+    Flask, render_template, request, redirect, url_for, flash
 )
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
@@ -36,7 +31,6 @@ ALLOWED_EXTS = {".pdf", ".docx"}
 
 # =========================
 # Glossário STF (link oficial)
-# (Scraping ficou instável no STF -> agora abrimos o link oficial direto)
 # =========================
 GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
 
@@ -99,6 +93,36 @@ STOPWORDS_PT = {
 }
 
 # =========================
+# Termos jurídicos (tradução simples)
+# =========================
+TERM_TRANSLATIONS = {
+    "habeas corpus": "pedido para proteger a liberdade (contra prisão ilegal/abuso).",
+    "periculum libertatis": "risco ligado à liberdade do acusado (perigo concreto de solto).",
+    "fumus boni iuris": "aparência de bom direito (indícios de que o pedido faz sentido).",
+    "periculum in mora": "risco da demora (se esperar, o direito pode se perder).",
+    "ratio decidendi": "motivo central que sustentou a decisão (fundamento decisivo).",
+    "obiter dictum": "comentário do julgador que não foi essencial para decidir.",
+    "distinguishing": "diferenciar o caso do precedente por fatos distintos.",
+    "overruling": "superação de entendimento anterior (mudança de jurisprudência).",
+    "nulidade": "ato/processo inválido por violação de regra/garantia.",
+    "ônus da prova": "quem tem o dever de provar determinado fato.",
+    "tutela de urgência": "decisão rápida e provisória para evitar dano imediato.",
+    "prisão preventiva": "prisão antes da sentença para proteger o processo/sociedade (com fundamento).",
+}
+
+def extract_terms_translation(text: str, max_items: int = 10) -> list[dict]:
+    t = (text or "").lower()
+    hits = []
+    seen = set()
+    for term, tr in TERM_TRANSLATIONS.items():
+        if term in t and term not in seen:
+            seen.add(term)
+            hits.append({"termo": term, "traducao": tr})
+            if len(hits) >= max_items:
+                break
+    return hits
+
+# =========================
 # Utilidades de texto
 # =========================
 def normalize(text: str) -> str:
@@ -107,11 +131,9 @@ def normalize(text: str) -> str:
     text = re.sub(r"[ \t]+", " ", text)
     return text
 
-
 def split_sentences(text: str):
     parts = re.split(r"(?<=[\.\?!])\s+", (text or "").strip())
     return [p.strip() for p in parts if p.strip()]
-
 
 def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
     lower = text.lower()
@@ -137,7 +159,6 @@ def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
     block = tail[:stop_idx] if stop_idx else tail
     return block.strip()[:max_chars].strip()
 
-
 def pick_keywords(text: str, k=8):
     tokens = re.findall(r"[A-Za-zÀ-ÿ]{3,}", (text or "").lower())
     tokens = [t for t in tokens if t not in STOPWORDS_PT]
@@ -145,7 +166,6 @@ def pick_keywords(text: str, k=8):
         return []
     counts = Counter(tokens)
     return [w for w, _ in counts.most_common(k)]
-
 
 def extract_legal_citations(text: str, limit=12):
     patterns = [
@@ -167,7 +187,6 @@ def extract_legal_citations(text: str, limit=12):
             if len(found) >= limit:
                 return found
     return found
-
 
 def extract_jurisprudencia_refs(text: str, limit=12):
     patterns = [
@@ -192,19 +211,6 @@ def extract_jurisprudencia_refs(text: str, limit=12):
                 return found
     return found
 
-
-def guess_rule_exception(tese: str):
-    separators = ["ressalv", "exceto", "salvo", "contudo", "entretanto", "todavia", "porém", "no entanto"]
-    low = (tese or "").lower()
-    for sep in separators:
-        idx = low.find(sep)
-        if idx != -1 and idx > 20:
-            regra = tese[:idx].strip(" .;:-")
-            excecao = tese[idx:].strip(" .;:-")
-            return regra, excecao
-    return (tese or "").strip(), ""
-
-
 def analyze_quality(text: str):
     t = (text or "").strip()
     warnings = []
@@ -216,7 +222,6 @@ def analyze_quality(text: str):
     if not (has_numbers or has_parties or has_request):
         warnings.append("Poucos elementos fáticos (partes/pedidos/números): a confiança da síntese cai.")
     return " ".join(warnings).strip()
-
 
 def confidence_score(text: str) -> dict:
     t = (text or "")
@@ -263,7 +268,6 @@ def confidence_score(text: str) -> dict:
 
     return {"nivel": level, "score": min(score, 100), "motivos": reasons[:4]}
 
-
 def pick_best_question(text: str, fallback_base: str) -> str:
     candidates = [s for s in split_sentences(text) if s.endswith("?") and 15 <= len(s) <= 240]
     if candidates:
@@ -281,7 +285,6 @@ def pick_best_question(text: str, fallback_base: str) -> str:
     if kws:
         return f"Qual é o entendimento do tribunal sobre {', '.join(kws)}?"
     return "Qual é o entendimento do tribunal sobre o tema do caso?"
-
 
 def suggest_library_links(text: str, max_items: int = 7):
     t = (text or "").lower()
@@ -329,11 +332,7 @@ def suggest_library_links(text: str, max_items: int = 7):
             break
     return out
 
-
 def build_search_queries(pergunta: str, tese: str, keywords: list[str], max_items: int = 4) -> list[str]:
-    """
-    “Pesquisas prontas” curtas e úteis (evita colar frases enormes).
-    """
     low = f"{pergunta} {tese}".lower()
 
     anchors = []
@@ -374,11 +373,7 @@ def build_search_queries(pergunta: str, tese: str, keywords: list[str], max_item
 
     return out[:max_items]
 
-
 def improve_user_question(raw: str, keywords: list[str]) -> dict:
-    """
-    Pergunta objetiva SEM “X e Y”.
-    """
     kws = [k for k in (keywords or []) if k][:4]
     tema = ", ".join(kws) if kws else "o tema do caso"
 
@@ -390,39 +385,45 @@ def improve_user_question(raw: str, keywords: list[str]) -> dict:
     ]
     return {"pergunta_objetiva": pergunta_objetiva, "variantes": variantes}
 
-
 def build_action_checklist(text: str) -> list[str]:
     low = (text or "").lower()
     items = []
 
     if "prisão preventiva" in low or "habeas" in low or "hc" in low:
         items.extend([
-            "A decisão fundamenta concretamente o periculum libertatis (ou é genérica)?",
-            "Há contemporaneidade dos fundamentos da preventiva?",
-            "Existe excesso de prazo? Há justificativas (complexidade, diligências, pluralidade de réus)?",
-            "Foram consideradas medidas cautelares diversas (art. 319 do CPP), com motivação?"
+            "Identifique a medida: é HC? Revogação/substituição de preventiva? Relaxamento?",
+            "Qual é o fundamento apontado (art. 312 do CPP)? Há fatos concretos ou é genérico?",
+            "Contemporaneidade: o fato é recente? A decisão explica por que a cautelar é necessária agora?",
+            "Excesso de prazo: qual marco inicial, qual prazo e qual justificativa do juízo/tribunal?",
+            "Medidas diversas (art. 319 do CPP): o julgador analisou e justificou por que não aplicou?",
+            "Dispositivo: qual foi o resultado (concedeu/negou/parcial)? Em quais termos?"
         ])
 
     if "tutela" in low or "urgência" in low:
         items.extend([
-            "Probabilidade do direito: quais fatos e documentos sustentam?",
-            "Perigo de dano/risco ao resultado útil: qual prova do risco?",
-            "Reversibilidade: há risco de irreversibilidade da medida?"
+            "Qual tutela foi pedida (urgência/evidência)? O pedido está claro?",
+            "Probabilidade do direito: quais fatos/provas sustentam?",
+            "Perigo de dano: qual risco imediato foi demonstrado?",
+            "Reversibilidade: a decisão comenta risco de irreversibilidade?",
+            "Dispositivo: deferiu/indeferiu? Houve condicionantes (caução/multa/limites)?"
         ])
 
     if "dano moral" in low or "responsabilidade" in low:
         items.extend([
-            "Conduta, dano e nexo: estão descritos e provados?",
-            "Há excludentes (culpa exclusiva, caso fortuito/força maior)?",
-            "Parâmetros de quantificação: há precedentes comparáveis?"
+            "Qual é o fato gerador do dano? Está descrito com clareza?",
+            "Nexo causal: o texto conecta conduta e dano ou só afirma?",
+            "Excludentes: culpa exclusiva, fortuito/força maior, exercício regular?",
+            "Quantum: quais critérios o julgador usa (proporcionalidade, precedentes, gravidade)?",
+            "Dispositivo: condenou/absolveu? Quais valores/obrigações?"
         ])
 
     if not items:
         items = [
-            "Qual é o pedido e qual foi o resultado (deferiu/negou/proveu)?",
-            "Quais fatos foram considerados relevantes?",
+            "Qual é a controvérsia central (pergunta jurídica)?",
+            "Quais fatos o julgador tratou como relevantes (e quais ignorou)?",
             "Qual norma foi determinante (não só citada)?",
-            "Há precedente obrigatório (Tema/Súmula) aplicável ou distinguishing?"
+            "Qual precedente/tema/súmula foi aplicado (ou afastado) e por quê?",
+            "Qual foi o resultado (dispositivo) e seus limites?"
         ]
 
     out = []
@@ -432,7 +433,27 @@ def build_action_checklist(text: str) -> list[str]:
         if k not in seen:
             seen.add(k)
             out.append(i)
-    return out[:8]
+    return out[:10]
+
+def build_main_theme(keywords: list[str], fundamentos_normas: list[str], fundamentos_juris: list[str]) -> str:
+    kws = [k for k in (keywords or []) if k][:4]
+    norm_hint = ""
+    for item in (fundamentos_normas or []):
+        if "CPP" in item:
+            norm_hint = " (processo penal)"
+            break
+        if "CPC" in item:
+            norm_hint = " (processo civil)"
+            break
+        if "CP" in item and "CPP" not in item:
+            norm_hint = " (direito penal)"
+            break
+
+    if kws:
+        return f"{', '.join(kws)}{norm_hint}".strip()
+    if fundamentos_juris and fundamentos_juris[0] and fundamentos_juris[0] != "(não identificado automaticamente)":
+        return f"Tema relacionado a {fundamentos_juris[0]}{norm_hint}".strip()
+    return "Tema não identificado automaticamente."
 
 # =========================
 # Núcleo da análise
@@ -473,6 +494,7 @@ def build_output(text: str):
 
     pergunta = pick_best_question(text, base_for_keywords)
 
+    # (mantemos tese para uso interno e para futuras melhorias)
     tese = extract_block(
         text,
         start_patterns=[r"\btese\b", r"\bconclus[aã]o\b", r"\bdecide-se\b", r"\bdispositivo\b", r"\bante o exposto\b", r"\bisto posto\b"],
@@ -484,76 +506,47 @@ def build_output(text: str):
         sents = split_sentences(src)
         tese = " ".join(sents[:3]) if sents else (src[:400] if src else "")
 
-    tese_regra, tese_excecao = guess_rule_exception(tese)
-
     fundamentos_normas = extract_legal_citations(text, limit=12) or ["(não identificado automaticamente)"]
     fundamentos_juris = extract_jurisprudencia_refs(text, limit=12) or ["(não identificado automaticamente)"]
 
     resumo_src = relatorio or ementa or text[:1200]
     resumo = " ".join(split_sentences(resumo_src)[:6]).strip()
 
-    controvertidos = []
-    for s in split_sentences(fundamentacao or relatorio or text)[:40]:
-        low = s.lower()
-        if any(x in low for x in ["discute-se", "controvérsia", "questão", "debate", "alega", "sustenta", "argumenta", "impugna"]):
-            controvertidos.append(s.rstrip(".").strip())
-    if not controvertidos:
-        if keywords:
-            controvertidos = [f"Delimitação do tema: {', '.join(keywords[:4])}."]
-        else:
-            controvertidos = ["Delimitação do tema central e requisitos aplicáveis ao caso."]
-    controvertidos = controvertidos[:6]
-
     pesquisas = build_search_queries(pergunta, tese, keywords, max_items=4)
-
     improved_q = improve_user_question(request.form.get("texto", "") if request else "", keywords)
 
     alerta = analyze_quality(text)
     conf = confidence_score(text)
 
     checklist = build_action_checklist(text)
-
     sugestoes = suggest_library_links(text, max_items=7)
 
-    low = text.lower()
-    hints = []
-    if any(w in low for w in ["concurso", "prova objetiva", "questão", "exame da ordem", "oab"]):
-        hints.append("Estudo/Prova: use as palavras-chave e as pesquisas prontas para achar casos semelhantes e padrões de fundamentação.")
-    if any(w in low for w in ["petição", "inicial", "contestação", "recurso", "agravo", "apelação", "habeas corpus", "mandado de segurança"]):
-        hints.append("Prática: transforme a tese em tópicos e valide com precedentes (Tema/Súmula/HC/REsp) antes de usar na peça.")
-    if not hints:
-        hints.append("Use como base para: (i) delimitar controvérsia; (ii) comparar casos; (iii) checar requisitos; (iv) montar pesquisa replicável.")
+    tema_principal = build_main_theme(keywords, fundamentos_normas, fundamentos_juris)
+    termos_importantes = extract_terms_translation(text, max_items=10)
 
     return {
+        "tema_principal": tema_principal,
+
         "pergunta": (pergunta or "").strip(),
-        "tese": (tese or "").strip(),
-        "tese_regra": (tese_regra or "").strip(),
-        "tese_excecao": (tese_excecao or "").strip(),
+        "pergunta_objetiva": improved_q.get("pergunta_objetiva", ""),
+
         "fundamentos_normas": fundamentos_normas,
         "fundamentos_juris": fundamentos_juris,
+
         "keywords": keywords[:8],
-        "aplicacao": " ".join(hints).strip(),
-        "ementa": (ementa or "").strip(),
-        "alerta": alerta,
-        "sugestoes": sugestoes,
+        "queries_juris": pesquisas,
+
+        "checklist": checklist,
 
         "resumo": resumo,
-        "relatorio": relatorio.strip() if relatorio else "",
-        "fundamentacao": fundamentacao.strip() if fundamentacao else "",
-        "dispositivo": dispositivo.strip() if dispositivo else "",
-        "pontos_controvertidos": controvertidos,
-
-        "queries_juris": pesquisas,  # mantemos a chave para compatibilidade com o template
-        "checklist": checklist,
+        "alerta": alerta,
         "confianca": conf,
 
-        "pergunta_objetiva": improved_q.get("pergunta_objetiva", ""),
-        "perguntas_variantes": improved_q.get("variantes", []),
+        "sugestoes": sugestoes,
 
-        # agora o glossário é só link (não tentamos cache)
-        "glossario_hits": [],
+        "termos_importantes": termos_importantes,
+
         "glossario_source": GLOSSARY_URL,
-        "glossario_updated_at": None,
     }
 
 # =========================
@@ -561,7 +554,6 @@ def build_output(text: str):
 # =========================
 def allowed_file(filename):
     return os.path.splitext((filename or "").lower())[1] in ALLOWED_EXTS
-
 
 def extract_text_from_pdf(path):
     reader = PdfReader(path)
@@ -572,11 +564,9 @@ def extract_text_from_pdf(path):
             chunks.append(txt)
     return "\n".join(chunks)
 
-
 def extract_text_from_docx(path):
     doc = Document(path)
     return "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
-
 
 def get_text_from_upload(file):
     filename = secure_filename(file.filename or "")
@@ -609,7 +599,6 @@ def get_text_from_upload(file):
 def home():
     return render_template("index.html")
 
-
 @app.post("/analisar")
 def analisar():
     texto = (request.form.get("texto") or "").strip()
@@ -638,21 +627,17 @@ def analisar():
     out = build_output(texto)
     return render_template("resultado.html", out=out, texto=texto, now=datetime.now())
 
-
 @app.get("/biblioteca")
 def biblioteca():
     return render_template("biblioteca.html", links=LIBRARY_LINKS)
-
 
 @app.get("/glossario")
 def glossario():
     return redirect(GLOSSARY_URL)
 
-
 @app.get("/sobre")
 def sobre():
     return render_template("sobre.html")
-
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
