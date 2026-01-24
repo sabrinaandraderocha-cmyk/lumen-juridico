@@ -287,7 +287,9 @@ def analisar():
 @app.get("/biblioteca")
 def biblioteca():
     links = [
-        # Constituição
+        # =========================
+        # CONSTITUIÇÃO
+        # =========================
         {
             "titulo": "Constituição Federal (PDF – DOU)",
             "url": "https://www.planalto.gov.br/ccivil_03/constituicao/DOUconstituicao88.pdf",
@@ -299,38 +301,134 @@ def biblioteca():
             "tipo": "Constituição"
         },
 
-        # Códigos
-        {
-            "titulo": "Código Penal",
-            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
-            "tipo": "Código"
-        },
-        {
-            "titulo": "Código de Processo Penal",
-            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm",
-            "tipo": "Código"
-        },
+        # =========================
+        # CÓDIGOS FUNDAMENTAIS
+        # =========================
         {
             "titulo": "Código Civil",
             "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",
             "tipo": "Código"
         },
         {
-            "titulo": "Código de Processo Civil",
+            "titulo": "Código de Processo Civil (CPC)",
             "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm",
             "tipo": "Código"
         },
         {
-            "titulo": "Código de Defesa do Consumidor (CDC)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
+            "titulo": "Código Penal (CP)",
+            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
+            "tipo": "Código"
+        },
+        {
+            "titulo": "Código de Processo Penal (CPP)",
+            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm",
             "tipo": "Código"
         },
 
-        # Portais
+        # =========================
+        # DIREITO DO TRABALHO
+        # =========================
+        {
+            "titulo": "Consolidação das Leis do Trabalho (CLT)",
+            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm",
+            "tipo": "Código • Trabalho"
+        },
+
+        # =========================
+        # DIREITO DO CONSUMIDOR
+        # =========================
+        {
+            "titulo": "Código de Defesa do Consumidor (CDC)",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
+            "tipo": "Código • Consumidor"
+        },
+
+        # =========================
+        # DIREITO ADMINISTRATIVO
+        # =========================
+        {
+            "titulo": "Lei de Licitações e Contratos Administrativos (Lei 14.133/2021)",
+            "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm",
+            "tipo": "Lei Administrativa"
+        },
+        {
+            "titulo": "Lei do Processo Administrativo Federal (Lei 9.784/1999)",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/l9784.htm",
+            "tipo": "Lei Administrativa"
+        },
+        {
+            "titulo": "Lei de Improbidade Administrativa (Lei 8.429/1992)",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm",
+            "tipo": "Lei Administrativa"
+        },
+
+        # =========================
+        # DIREITO TRIBUTÁRIO
+        # =========================
+        {
+            "titulo": "Código Tributário Nacional (CTN)",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm",
+            "tipo": "Código • Tributário"
+        },
+
+        # =========================
+        # DIREITO PREVIDENCIÁRIO
+        # =========================
+        {
+            "titulo": "Lei de Benefícios da Previdência Social (Lei 8.213/1991)",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8213cons.htm",
+            "tipo": "Lei Previdenciária"
+        },
+
+        # =========================
+        # DIREITO ELEITORAL
+        # =========================
+        {
+            "titulo": "Código Eleitoral",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/l4737.htm",
+            "tipo": "Código • Eleitoral"
+        },
+        {
+            "titulo": "Lei das Eleições (Lei 9.504/1997)",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/l9504.htm",
+            "tipo": "Lei Eleitoral"
+        },
+
+        # =========================
+        # DIREITO DA CRIANÇA E FAMÍLIA
+        # =========================
+        {
+            "titulo": "Estatuto da Criança e do Adolescente (ECA)",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm",
+            "tipo": "Estatuto"
+        },
+        {
+            "titulo": "Lei Maria da Penha (Lei 11.340/2006)",
+            "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm",
+            "tipo": "Lei Especial"
+        },
+        {
+            "titulo": "Estatuto do Idoso (Lei 10.741/2003)",
+            "url": "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.741.htm",
+            "tipo": "Estatuto"
+        },
+
+        # =========================
+        # DIREITOS HUMANOS
+        # =========================
+        {
+            "titulo": "Convenção Americana de Direitos Humanos (Pacto de San José da Costa Rica)",
+            "url": "https://www.planalto.gov.br/ccivil_03/decreto/d0678.htm",
+            "tipo": "Tratado Internacional"
+        },
+
+        # =========================
+        # PORTAIS E BIBLIOTECAS
+        # =========================
         {
             "titulo": "Portal da Legislação – Planalto",
             "url": "https://www4.planalto.gov.br/legislacao/portal-legis",
-            "tipo": "Portal"
+            "tipo": "Portal Oficial"
         },
         {
             "titulo": "Livros Abertos – Direito (acesso aberto)",
