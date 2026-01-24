@@ -47,8 +47,27 @@ def normalize(text: str) -> str:
     return text
 
 def split_sentences(text: str):
-    parts = re.split(r"(?<=[\.\?!])\s+", text.strip())
+    parts = re.split(r"(?<=[\.\?!])\s+", (text or "").strip())
     return [p.strip() for p in parts if p.strip()]
+
+def clean_noise(s: str) -> str:
+    s = (s or "").strip()
+    s = re.sub(r"\s+", " ", s)
+    # heurística leve para reduzir vícios de fala
+    s = re.sub(r"\b(né|tipo|assim|daí|toda hora)\b", "", s, flags=re.I)
+    s = re.sub(r"\s{2,}", " ", s).strip()
+    return s
+
+def shorten(s: str, max_chars=260) -> str:
+    s = clean_noise(s)
+    if len(s) <= max_chars:
+        return s
+    cut = s.rfind(".", 0, max_chars)
+    if cut < 80:
+        cut = s.rfind(";", 0, max_chars)
+    if cut < 80:
+        cut = max_chars
+    return s[:cut].rstrip(" .;:-") + "…"
 
 def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
     lower = text.lower()
@@ -75,12 +94,12 @@ def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
     return block.strip()[:max_chars].strip()
 
 def pick_keywords(text: str, k=5):
-    tokens = re.findall(r"[A-Za-zÀ-ÿ]{3,}", text.lower())
+    tokens = re.findall(r"[A-Za-zÀ-ÿ]{3,}", (text or "").lower())
     tokens = [t for t in tokens if t not in STOPWORDS_PT]
     counts = Counter(tokens)
     return [w for w, _ in counts.most_common(k)]
 
-def extract_legal_citations(text: str, limit=8):
+def extract_legal_citations(text: str, limit=10):
     patterns = [
         r"\bart\.?\s*\d+[a-zA-Zº°]*\b(?:\s*,\s*§\s*\d+º?)?",
         r"\blei\s*n[ºo]\s*\d[\d\.\-]*",
@@ -91,12 +110,31 @@ def extract_legal_citations(text: str, limit=8):
     found = []
     for pat in patterns:
         for m in re.finditer(pat, text, flags=re.I):
-            val = m.group(0).strip()
-            if val.lower() not in [f.lower() for f in found]:
+            val = re.sub(r"\s+", " ", m.group(0).strip())
+            if val and val.lower() not in [f.lower() for f in found]:
                 found.append(val)
             if len(found) >= limit:
                 return found
     return found
+
+def pick_best_question(text: str) -> str:
+    # 1) frases com ? e tamanho razoável
+    candidates = [s for s in split_sentences(text) if s.endswith("?") and 15 <= len(s) <= 240]
+    if candidates:
+        return shorten(candidates[0], 240)
+
+    # 2) tenta achar controvérsia/questão em frases com marcadores
+    markers = ["discute-se", "controvérsia", "questão", "trata-se", "cuidam os autos", "pretende"]
+    for s in split_sentences(text)[:20]:
+        low = s.lower()
+        if any(m in low for m in markers) and 30 <= len(s) <= 260:
+            return shorten(s, 240)
+
+    # 3) fallback com keywords
+    kws = pick_keywords(text, k=3)
+    if kws:
+        return f"Qual é a controvérsia jurídica central envolvendo {', '.join(kws)}?"
+    return "Qual é a controvérsia jurídica central do caso?"
 
 # =========================
 # Núcleo da análise
@@ -110,34 +148,33 @@ def build_output(text: str):
         [r"\bac[oó]rd[aã]o\b", r"\brelat[oó]rio\b", r"\bvoto\b"]
     ) or text[:900]
 
-    question = next(
-        (s for s in split_sentences(text) if s.endswith("?") and len(s) < 240),
-        None
-    )
-
-    if not question:
-        kws = pick_keywords(ementa, 3)
-        question = f"Qual é a controvérsia jurídica central envolvendo {', '.join(kws)}?"
+    question = pick_best_question(text)
 
     tese = extract_block(
         text,
         [r"\btese\b", r"\bconclus[aã]o\b", r"\bdecide-se\b"],
         [r"\bfundamenta[cç][aã]o\b", r"\bdispositivo\b"],
-        900
+        1400
     ) or " ".join(split_sentences(ementa)[:2])
 
-    fundamentos = extract_legal_citations(text) or [
+    # versão curta para tela
+    tese_curta = shorten(tese, 520)
+
+    fundamentos = extract_legal_citations(text, limit=10) or [
         "(nenhuma referência legal detectada automaticamente)"
     ]
 
+    # aplicação mais objetiva (sem prometer demais)
     aplicacao = (
-        "Útil para estudo, revisão de jurisprudência e construção de argumentos "
-        "em peças processuais ou provas."
+        "Use este resultado para: (i) revisar a tese do julgado; "
+        "(ii) localizar as normas citadas; (iii) estruturar um fichamento "
+        "ou argumento em peça/prova."
     )
 
     return {
         "pergunta": question,
         "tese": tese,
+        "tese_curta": tese_curta,
         "fundamentos": fundamentos,
         "aplicacao": aplicacao,
         "ementa": ementa
@@ -147,20 +184,27 @@ def build_output(text: str):
 # Upload helpers
 # =========================
 def allowed_file(filename):
-    return os.path.splitext(filename.lower())[1] in ALLOWED_EXTS
+    return os.path.splitext((filename or "").lower())[1] in ALLOWED_EXTS
 
 def extract_text_from_pdf(path):
     reader = PdfReader(path)
-    return "\n".join([p.extract_text() or "" for p in reader.pages])
+    chunks = []
+    for p in reader.pages:
+        txt = p.extract_text() or ""
+        if txt.strip():
+            chunks.append(txt)
+    return "\n".join(chunks)
 
 def extract_text_from_docx(path):
     doc = Document(path)
     return "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
 
 def get_text_from_upload(file):
-    filename = secure_filename(file.filename)
-    ext = os.path.splitext(filename)[1].lower()
+    filename = secure_filename(file.filename or "")
+    if not filename:
+        return ""
 
+    ext = os.path.splitext(filename)[1].lower()
     path = os.path.join(
         UPLOAD_DIR,
         f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
@@ -196,8 +240,16 @@ def analisar():
             flash("Envie apenas PDF ou DOCX.", "error")
             return redirect(url_for("home"))
 
-        extraido = get_text_from_upload(arquivo)
-        texto = f"{texto}\n\n{extraido}" if texto else extraido
+        extraido = get_text_from_upload(arquivo).strip()
+        if not extraido:
+            flash(
+                "Não foi possível extrair texto do arquivo. "
+                "Se for PDF escaneado (imagem), exporte para PDF pesquisável ou cole o texto manualmente.",
+                "error"
+            )
+            return redirect(url_for("home"))
+
+        texto = f"{texto}\n\n{extraido}".strip() if texto else extraido
 
     if not texto.strip():
         flash("Cole um texto ou envie um arquivo para análise.", "error")
@@ -248,7 +300,7 @@ def biblioteca():
             "tipo": "Código"
         },
 
-        # Portais
+        # Portais e bibliotecas
         {
             "titulo": "Portal da Legislação – Planalto",
             "url": "https://www4.planalto.gov.br/legislacao/portal-legis",
@@ -274,4 +326,4 @@ def sobre():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)
