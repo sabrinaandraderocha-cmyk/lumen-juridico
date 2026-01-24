@@ -13,7 +13,6 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
-from jinja2 import TemplateNotFound
 
 # Leitura de arquivos
 from pypdf import PdfReader
@@ -36,326 +35,10 @@ app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8 MB
 ALLOWED_EXTS = {".pdf", ".docx"}
 
 # =========================
-# Glossário STF (cache local)
+# Glossário STF (link oficial)
+# (Scraping ficou instável no STF -> agora abrimos o link oficial direto)
 # =========================
 GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
-GLOSSARY_CACHE_PATH = os.path.join(INSTANCE_DIR, "glossario_stf.json")
-GLOSSARY_UPDATE_DAYS = int(os.getenv("GLOSSARY_UPDATE_DAYS", "7"))  # atualiza a cada 7 dias (default)
-
-
-def _now_ts() -> int:
-    return int(time.time())
-
-
-def _strip_accents(s: str) -> str:
-    s = s or ""
-    return "".join(
-        ch for ch in unicodedata.normalize("NFD", s)
-        if unicodedata.category(ch) != "Mn"
-    )
-
-
-def normalize_term(s: str) -> str:
-    s = (s or "").strip().lower()
-    s = _strip_accents(s)
-    s = re.sub(r"\s+", " ", s)
-    s = re.sub(r"[^\w\s\-\/]", "", s)  # remove pontuações “soltas”
-    return s.strip()
-
-
-class STFGlossaryHTMLParser(HTMLParser):
-    """
-    Parser "tolerante": tenta extrair pares (termo, definicao) do HTML
-    sem depender muito da estrutura exata da página.
-
-    Estratégia:
-    - Captura textos visíveis.
-    - Faz uma varredura por padrões comuns (Termo: definição)
-      e também heurística em blocos.
-    """
-    def __init__(self):
-        super().__init__()
-        self._texts = []
-        self._skip = False
-        self._tag_stack = []
-
-    def handle_starttag(self, tag, attrs):
-        tag = tag.lower()
-        self._tag_stack.append(tag)
-        if tag in ("script", "style", "noscript"):
-            self._skip = True
-
-    def handle_endtag(self, tag):
-        tag = tag.lower()
-        # desempilha até achar o tag
-        while self._tag_stack:
-            t = self._tag_stack.pop()
-            if t == tag:
-                break
-        if tag in ("script", "style", "noscript"):
-            self._skip = False
-
-    def handle_data(self, data):
-        if self._skip:
-            return
-        txt = (data or "").strip()
-        if not txt:
-            return
-        # evita lixo típico de navegação
-        if len(txt) <= 1:
-            return
-        self._texts.append(txt)
-
-    def get_text(self) -> str:
-        # cola preservando “quebras lógicas”
-        raw = "\n".join(self._texts)
-        raw = re.sub(r"[ \t]+", " ", raw)
-        raw = re.sub(r"\n{3,}", "\n\n", raw)
-        return raw.strip()
-
-
-def load_glossary_cache() -> dict:
-    if not os.path.exists(GLOSSARY_CACHE_PATH):
-        return {}
-    try:
-        with open(GLOSSARY_CACHE_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if isinstance(data, dict) and "items" in data:
-            return data
-        return {}
-    except Exception:
-        return {}
-
-
-def save_glossary_cache(items: list[dict]):
-    payload = {
-        "source": GLOSSARY_URL,
-        "updated_at": datetime.now().isoformat(timespec="seconds"),
-        "items": items,
-    }
-    os.makedirs(INSTANCE_DIR, exist_ok=True)
-    with open(GLOSSARY_CACHE_PATH, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
-
-
-def cache_is_stale(cache: dict) -> bool:
-    try:
-        updated_at = cache.get("updated_at")
-        if not updated_at:
-            return True
-        dt = datetime.fromisoformat(updated_at)
-        return datetime.now() - dt > timedelta(days=GLOSSARY_UPDATE_DAYS)
-    except Exception:
-        return True
-
-
-def fetch_glossary_html() -> str:
-    # user-agent ajuda alguns servidores a devolverem HTML normal
-    req = Request(GLOSSARY_URL, headers={"User-Agent": "Mozilla/5.0 (LumenJuridico/1.0)"})
-    with urlopen(req, timeout=15) as resp:
-        raw = resp.read()
-    # tenta utf-8, fallback latin-1
-    try:
-        return raw.decode("utf-8", errors="replace")
-    except Exception:
-        return raw.decode("latin-1", errors="replace")
-
-
-def parse_glossary_items_from_html(html: str) -> list[dict]:
-    """
-    Saída: [{"term": "...", "definition": "...", "norm": "..."}]
-    """
-    parser = STFGlossaryHTMLParser()
-    parser.feed(html or "")
-    text = parser.get_text()
-
-    # Heurística 1: linhas com "Termo - definição" ou "Termo: definição"
-    items = []
-    seen = set()
-
-    # Normaliza quebras
-    lines = [ln.strip() for ln in re.split(r"\n+", text) if ln.strip()]
-
-    # Tenta achar blocos que pareçam entradas
-    # Ex.: "Habeas corpus - Remédio constitucional ..."
-    pattern = re.compile(r"^([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9\s\-\(\)\/]{2,80})\s*[:\-–—]\s*(.{20,})$")
-
-    for ln in lines:
-        m = pattern.match(ln)
-        if not m:
-            continue
-        term = m.group(1).strip()
-        definition = m.group(2).strip()
-        norm = normalize_term(term)
-        if len(term) < 3 or len(definition) < 20:
-            continue
-        if norm in seen:
-            continue
-        seen.add(norm)
-        items.append({"term": term, "definition": definition, "norm": norm})
-
-    # Heurística 2: se vier muito pouco, tenta pares em sequência (termo em linha curta + definição na próxima)
-    if len(items) < 50:
-        items2 = []
-        seen2 = set(seen)
-        for i in range(len(lines) - 1):
-            a = lines[i]
-            b = lines[i + 1]
-            # termo costuma ser mais curto e “título”
-            if 3 <= len(a) <= 80 and len(b) >= 30:
-                # evita menus e títulos genéricos
-                bad = ["glossário", "jurisprudência", "voltar", "portal", "stf", "pesquisa"]
-                if any(x in a.lower() for x in bad):
-                    continue
-                # se a linha "a" parece uma definição (tem ponto demais), pula
-                if a.count(".") >= 2:
-                    continue
-                term = a.strip(":-–— ").strip()
-                definition = b.strip()
-                norm = normalize_term(term)
-                if norm and norm not in seen2:
-                    seen2.add(norm)
-                    items2.append({"term": term, "definition": definition, "norm": norm})
-        items.extend(items2)
-
-    # Filtra entradas muito ruins
-    clean = []
-    for it in items:
-        t = (it.get("term") or "").strip()
-        d = (it.get("definition") or "").strip()
-        if not t or not d:
-            continue
-        if len(t) > 120:
-            continue
-        if len(d) < 25:
-            continue
-        clean.append(it)
-
-    # Dedup final por norm
-    out = []
-    seen = set()
-    for it in clean:
-        n = it.get("norm") or normalize_term(it.get("term", ""))
-        if not n or n in seen:
-            continue
-        seen.add(n)
-        out.append({"term": it["term"], "definition": it["definition"], "norm": n})
-
-    return out
-
-
-def ensure_glossary_loaded(force_update: bool = False) -> dict:
-    """
-    Retorna cache carregado; se estiver stale e der, atualiza.
-    Nunca quebra o app se a internet falhar.
-    """
-    cache = load_glossary_cache()
-
-    if force_update or not cache or cache_is_stale(cache):
-        try:
-            html = fetch_glossary_html()
-            items = parse_glossary_items_from_html(html)
-            # só salva se parecer minimamente válido
-            if len(items) >= 50:
-                save_glossary_cache(items)
-                cache = load_glossary_cache()
-        except Exception:
-            # mantém o cache antigo, se existir
-            pass
-
-    return cache or {"items": [], "updated_at": None, "source": GLOSSARY_URL}
-
-
-def glossary_search(q: str, limit: int = 10) -> list[dict]:
-    cache = ensure_glossary_loaded(force_update=False)
-    items = cache.get("items") or []
-    qn = normalize_term(q)
-
-    if not qn:
-        return []
-
-    scored = []
-    for it in items:
-        term = it.get("term") or ""
-        definition = it.get("definition") or ""
-        norm = it.get("norm") or normalize_term(term)
-        if not norm:
-            continue
-
-        # ranking simples
-        score = 0
-        if norm == qn:
-            score += 100
-        if norm.startswith(qn):
-            score += 60
-        if qn in norm:
-            score += 35
-        # também busca na definição, mas com peso menor
-        if qn and qn in normalize_term(definition):
-            score += 10
-
-        if score > 0:
-            scored.append((score, term, definition))
-
-    scored.sort(key=lambda x: (-x[0], x[1].lower()))
-    out = []
-    for score, term, definition in scored[:limit]:
-        out.append({"term": term, "definition": definition})
-    return out
-
-
-def detect_glossary_terms_in_text(text: str, max_hits: int = 10) -> list[dict]:
-    """
-    Tenta encontrar termos do glossário citados no texto analisado.
-    Heurística: procura por termos curtos/médios e expressões bem típicas.
-    """
-    cache = ensure_glossary_loaded(force_update=False)
-    items = cache.get("items") or []
-    if not items:
-        return []
-
-    t_norm = normalize_term(text)
-    if not t_norm:
-        return []
-
-    # Seleciona candidatos do glossário por "palavras-chave do texto"
-    tokens = set(re.findall(r"[a-z0-9]{4,}", t_norm))
-    if not tokens:
-        return []
-
-    candidates = []
-    for it in items:
-        term = it.get("term") or ""
-        norm = it.get("norm") or normalize_term(term)
-        if not norm:
-            continue
-        # evita termos gigantes (tendem a dar falso positivo)
-        if len(norm) > 45:
-            continue
-
-        # se termo é composto, checa primeiro e último token
-        parts = norm.split()
-        if parts:
-            if parts[0] in tokens or parts[-1] in tokens:
-                # checa ocorrência literal do termo no texto normalizado
-                if f" {norm} " in f" {t_norm} ":
-                    candidates.append(it)
-
-    # Ordena por termos mais longos primeiro (mais específicos) e corta
-    candidates.sort(key=lambda x: len(x.get("norm", "")), reverse=True)
-
-    hits = []
-    seen = set()
-    for it in candidates:
-        n = it.get("norm")
-        if not n or n in seen:
-            continue
-        seen.add(n)
-        hits.append({"term": it.get("term", ""), "definition": it.get("definition", "")})
-        if len(hits) >= max_hits:
-            break
-    return hits
-
 
 # =========================
 # Biblioteca (base) — usada no /biblioteca e nas sugestões
@@ -399,7 +82,7 @@ LIBRARY_LINKS = [
     {"key": "LIVROS_ABERTOS", "titulo": "Livros Abertos – Direito (acesso aberto)", "url": "https://www.livrosabertos.abcd.usp.br/portaldelivrosUSP/catalog/category/direito", "tipo": "Livros acadêmicos"},
     {"key": "OAB", "titulo": "Biblioteca Digital da OAB", "url": "http://www.oab.org.br/biblioteca-digital/publicacoes#", "tipo": "OAB"},
 
-    # Glossário STF (atalho)
+    # Glossário STF
     {"key": "GLOSS_STF", "titulo": "Glossário jurídico – STF", "url": GLOSSARY_URL, "tipo": "Glossário"},
 ]
 
@@ -411,7 +94,8 @@ STOPWORDS_PT = {
     "por","para","com","sem","sobre","entre","e","ou","que","se","ao","aos","à","às","como","mais",
     "menos","já","não","sim","ser","foi","é","são","era","sendo","ter","tem","têm","haver","há",
     "art","artigo","lei","decreto","resolução","acórdão","relator","relatora","turma","câmara",
-    "tribunal","stj","stf","tj","trf","ministro","ministra","voto","decisão","processo","recurso"
+    "tribunal","stj","stf","tj","trf","ministro","ministra","voto","decisão","processo","recurso",
+    "ementa"
 }
 
 # =========================
@@ -526,7 +210,6 @@ def analyze_quality(text: str):
     warnings = []
     if len(t) < 450:
         warnings.append("Texto muito curto: a estrutura tende a ficar genérica.")
-    # “fatos” mínimos: datas, nomes, valores, número do processo etc.
     has_numbers = bool(re.search(r"\d{2,}", t))
     has_parties = bool(re.search(r"\b(autor|réu|ré|impetrante|paciente|apelante|agravante|recorrente)\b", t, flags=re.I))
     has_request = bool(re.search(r"\b(pede|requer|postula|pleiteia|pretende|busca)\b", t, flags=re.I))
@@ -590,15 +273,14 @@ def pick_best_question(text: str, fallback_base: str) -> str:
     for s in split_sentences(text)[:30]:
         low = s.lower()
         if any(m in low for m in markers) and 30 <= len(s) <= 260:
-            # transforma em pergunta, quando fizer sentido
             if not s.endswith("?"):
                 return f"{s.rstrip('.')}?"
             return s.strip()
 
-    kws = pick_keywords(fallback_base, k=3)
+    kws = pick_keywords(fallback_base, k=4)
     if kws:
-        return f"É possível X em Y no contexto de {', '.join(kws)}?"
-    return "É possível X em Y no contexto do caso?"
+        return f"Qual é o entendimento do tribunal sobre {', '.join(kws)}?"
+    return "Qual é o entendimento do tribunal sobre o tema do caso?"
 
 
 def suggest_library_links(text: str, max_items: int = 7):
@@ -630,11 +312,9 @@ def suggest_library_links(text: str, max_items: int = 7):
                 if k not in keys:
                     keys.append(k)
 
-    # Glossário STF ajuda bastante pra termos técnicos em decisões
     if "GLOSS_STF" not in keys:
         keys.append("GLOSS_STF")
 
-    # fallback: sempre úteis
     for k in ["PORTAL_PLANALTO", "LIVROS_ABERTOS", "OAB"]:
         if k not in keys:
             keys.append(k)
@@ -650,109 +330,68 @@ def suggest_library_links(text: str, max_items: int = 7):
     return out
 
 
-def build_search_queries(pergunta: str, tese: str, keywords: list[str], max_items: int = 5) -> list[str]:
+def build_search_queries(pergunta: str, tese: str, keywords: list[str], max_items: int = 4) -> list[str]:
     """
-    Gera consultas prontas para copiar/colar em pesquisa de jurisprudência.
+    “Pesquisas prontas” curtas e úteis (evita colar frases enormes).
     """
-    q = []
-    base_terms = [w for w in (keywords or [])[:6] if w]
-    # “âncoras” comuns
-    anchors = []
     low = f"{pergunta} {tese}".lower()
-    for a in ["habeas corpus", "prisão preventiva", "excesso de prazo", "fundamentação", "contemporaneidade",
-              "nulidade", "cerceamento", "recurso", "dano moral", "responsabilidade civil", "tutela de urgência"]:
+
+    anchors = []
+    for a in [
+        "habeas corpus", "prisão preventiva", "excesso de prazo", "fundamentação",
+        "contemporaneidade", "medidas cautelares", "art. 312", "art. 319",
+        "tutela de urgência", "probabilidade do direito", "perigo de dano",
+        "dano moral", "responsabilidade civil", "ônus da prova", "cerceamento"
+    ]:
         if a in low:
             anchors.append(a)
 
-    # consulta 1: termo principal + palavras-chave
-    terms = []
-    if anchors:
-        terms.append(f"\"{anchors[0]}\"")
-    if base_terms:
-        terms.extend([f"\"{t}\"" for t in base_terms[:4]])
-    if terms:
-        q.append(" AND ".join(terms))
+    kws = [k for k in (keywords or []) if k and len(k) >= 4][:6]
 
-    # consulta 2: pergunta em forma curta (sem pontuação)
-    p = re.sub(r"[^\w\sÀ-ÿ]", "", (pergunta or "")).strip()
-    p = re.sub(r"\s+", " ", p)
-    if len(p) >= 25:
-        q.append(p[:140])
-
-    # consulta 3: tese regra + termos
-    tr = re.sub(r"\s+", " ", (tese or "")).strip()
-    if len(tr) >= 40:
-        q.append(tr[:160])
-
-    # variações úteis (OR)
-    if anchors:
-        alt = [f"\"{a}\"" for a in anchors[:3]]
-        if alt:
-            q.append(" OR ".join(alt))
-
-    # limpa e corta
     out = []
-    seen = set()
-    for s in q:
-        s2 = s.strip()
-        if not s2:
-            continue
-        k = s2.lower()
-        if k in seen:
-            continue
-        seen.add(k)
-        out.append(s2)
-        if len(out) >= max_items:
-            break
-    return out
+    def add(s: str):
+        s = (s or "").strip()
+        if not s:
+            return
+        if s.lower() in [x.lower() for x in out]:
+            return
+        out.append(s)
+
+    if anchors:
+        parts = [f"\"{anchors[0]}\""]
+        for k in kws[:2]:
+            parts.append(f"\"{k}\"")
+        add(" AND ".join(parts))
+
+    if kws:
+        add(" AND ".join([f"\"{k}\"" for k in kws[:3]]))
+
+    if len(anchors) >= 2:
+        add(" OR ".join([f"\"{a}\"" for a in anchors[:3]]))
+
+    if not out and anchors:
+        add(f"\"{anchors[0]}\"")
+
+    return out[:max_items]
 
 
 def improve_user_question(raw: str, keywords: list[str]) -> dict:
     """
-    Converte texto cru / desabafo em perguntas jurídicas objetivas.
-    Retorna:
-      - pergunta_objetiva
-      - variantes (lista)
+    Pergunta objetiva SEM “X e Y”.
     """
-    raw = (raw or "").strip()
-    kws = [k for k in (keywords or []) if k]
-    base = "o caso"
+    kws = [k for k in (keywords or []) if k][:4]
+    tema = ", ".join(kws) if kws else "o tema do caso"
 
-    # tenta inferir área/medida
-    low = raw.lower()
-    if "habeas" in low or "pris" in low or "preventiva" in low:
-        base = "prisão preventiva / habeas corpus"
-    elif "consum" in low or "fornecedor" in low:
-        base = "relação de consumo"
-    elif "trabalh" in low or "clt" in low:
-        base = "relação de trabalho"
-    elif "tutela" in low or "urgência" in low:
-        base = "tutela provisória"
-
-    core = kws[:3]
-    if core:
-        tema = ", ".join(core)
-    else:
-        tema = base
-
-    pergunta_objetiva = f"É possível X em Y considerando {tema}?"
+    pergunta_objetiva = f"Qual é o entendimento do tribunal sobre {tema}?"
     variantes = [
-        f"Quais são os requisitos para X no contexto de {tema}?",
-        f"Em quais hipóteses o tribunal admite/nega X quando há {tema}?",
-        f"Há nulidade ou ilegalidade em Y quando se verifica {tema}?",
+        f"Quais requisitos o tribunal exige em casos de {tema}?",
+        f"Em quais hipóteses o tribunal afasta {tema}?",
+        f"Quais fundamentos costumam ser determinantes em decisões sobre {tema}?",
     ]
-
-    # se houver muito discurso opinativo, tenta “trazer para o jurídico”
-    if len(raw) > 0 and not raw.endswith("?"):
-        variantes.insert(0, f"Qual é a controvérsia jurídica central envolvendo {tema}?")
-
-    return {"pergunta_objetiva": pergunta_objetiva, "variantes": variantes[:4]}
+    return {"pergunta_objetiva": pergunta_objetiva, "variantes": variantes}
 
 
 def build_action_checklist(text: str) -> list[str]:
-    """
-    Checklist “do que checar” (útil pra peça/estudo).
-    """
     low = (text or "").lower()
     items = []
 
@@ -785,7 +424,7 @@ def build_action_checklist(text: str) -> list[str]:
             "Qual norma foi determinante (não só citada)?",
             "Há precedente obrigatório (Tema/Súmula) aplicável ou distinguishing?"
         ]
-    # dedup preservando ordem
+
     out = []
     seen = set()
     for i in items:
@@ -795,14 +434,12 @@ def build_action_checklist(text: str) -> list[str]:
             out.append(i)
     return out[:8]
 
-
 # =========================
-# Núcleo da análise (melhorado)
+# Núcleo da análise
 # =========================
 def build_output(text: str):
     text = normalize(text)
 
-    # tenta estruturar em blocos clássicos
     relatorio = extract_block(
         text,
         start_patterns=[r"\brelat[oó]rio\b", r"\bs[ií]ntese\b", r"\bcuidam os autos\b", r"\btrata-se\b"],
@@ -829,12 +466,11 @@ def build_output(text: str):
         start_patterns=[r"\bementa\b"],
         stop_patterns=[r"\bac[oó]rd[aã]o\b", r"\brelat[oó]rio\b", r"\bvoto\b"],
         max_chars=1700
-    )
+    ) or text[:900].strip()
 
     base_for_keywords = ementa or fundamentacao or relatorio or text[:1200]
     keywords = pick_keywords(base_for_keywords, k=8)
 
-    # pergunta + tese “úteis”
     pergunta = pick_best_question(text, base_for_keywords)
 
     tese = extract_block(
@@ -844,7 +480,6 @@ def build_output(text: str):
         max_chars=1600
     )
     if not tese:
-        # fallback: 2-3 frases do dispositivo ou ementa
         src = dispositivo or ementa or fundamentacao or text[:900]
         sents = split_sentences(src)
         tese = " ".join(sents[:3]) if sents else (src[:400] if src else "")
@@ -854,57 +489,42 @@ def build_output(text: str):
     fundamentos_normas = extract_legal_citations(text, limit=12) or ["(não identificado automaticamente)"]
     fundamentos_juris = extract_jurisprudencia_refs(text, limit=12) or ["(não identificado automaticamente)"]
 
-    # resumo curto (5–8 linhas)
     resumo_src = relatorio or ementa or text[:1200]
-    resumo_sents = split_sentences(resumo_src)[:6]
-    resumo = " ".join(resumo_sents).strip()
+    resumo = " ".join(split_sentences(resumo_src)[:6]).strip()
 
-    # pontos controvertidos (heurística simples)
     controvertidos = []
     for s in split_sentences(fundamentacao or relatorio or text)[:40]:
         low = s.lower()
         if any(x in low for x in ["discute-se", "controvérsia", "questão", "debate", "alega", "sustenta", "argumenta", "impugna"]):
             controvertidos.append(s.rstrip(".").strip())
     if not controvertidos:
-        # gera com base em keywords
         if keywords:
             controvertidos = [f"Delimitação do tema: {', '.join(keywords[:4])}."]
         else:
             controvertidos = ["Delimitação do tema central e requisitos aplicáveis ao caso."]
-
     controvertidos = controvertidos[:6]
 
-    # queries prontas de pesquisa
-    queries = build_search_queries(pergunta, tese, keywords, max_items=5)
+    pesquisas = build_search_queries(pergunta, tese, keywords, max_items=4)
 
-    # “modo desabafo” -> pergunta objetiva + variantes
     improved_q = improve_user_question(request.form.get("texto", "") if request else "", keywords)
 
-    # alertas + confiança
     alerta = analyze_quality(text)
     conf = confidence_score(text)
 
-    # checklist prático
     checklist = build_action_checklist(text)
 
-    # glossário: tenta hits automáticos
-    glossary_hits = detect_glossary_terms_in_text(f"{tese}\n{fundamentos_normas}\n{fundamentos_juris}\n{text}", max_hits=10)
-
-    # sugestões de biblioteca (com glossário incluso)
     sugestoes = suggest_library_links(text, max_items=7)
 
-    # aplicação (mantém sua ideia, mas mais acionável)
     low = text.lower()
     hints = []
     if any(w in low for w in ["concurso", "prova objetiva", "questão", "exame da ordem", "oab"]):
-        hints.append("Estudo/Prova: use as queries prontas + palavras-chave para achar casos semelhantes e padrões de fundamentação.")
+        hints.append("Estudo/Prova: use as palavras-chave e as pesquisas prontas para achar casos semelhantes e padrões de fundamentação.")
     if any(w in low for w in ["petição", "inicial", "contestação", "recurso", "agravo", "apelação", "habeas corpus", "mandado de segurança"]):
-        hints.append("Prática: transforme a tese em tópicos de fundamentação e valide com precedentes (Tema/Súmula/HC/REsp) antes de usar na peça.")
+        hints.append("Prática: transforme a tese em tópicos e valide com precedentes (Tema/Súmula/HC/REsp) antes de usar na peça.")
     if not hints:
-        hints.append("Use como base para: (i) delimitar controvérsia; (ii) comparar casos; (iii) checar requisitos; (iv) montar uma pesquisa de jurisprudência replicável.")
+        hints.append("Use como base para: (i) delimitar controvérsia; (ii) comparar casos; (iii) checar requisitos; (iv) montar pesquisa replicável.")
 
     return {
-        # compatibilidade com seu template atual
         "pergunta": (pergunta or "").strip(),
         "tese": (tese or "").strip(),
         "tese_regra": (tese_regra or "").strip(),
@@ -917,22 +537,23 @@ def build_output(text: str):
         "alerta": alerta,
         "sugestoes": sugestoes,
 
-        # NOVOS: análise mais útil
         "resumo": resumo,
         "relatorio": relatorio.strip() if relatorio else "",
         "fundamentacao": fundamentacao.strip() if fundamentacao else "",
         "dispositivo": dispositivo.strip() if dispositivo else "",
         "pontos_controvertidos": controvertidos,
-        "queries_juris": queries,
+
+        "queries_juris": pesquisas,  # mantemos a chave para compatibilidade com o template
         "checklist": checklist,
         "confianca": conf,
+
         "pergunta_objetiva": improved_q.get("pergunta_objetiva", ""),
         "perguntas_variantes": improved_q.get("variantes", []),
 
-        # NOVO: glossário
-        "glossario_hits": glossary_hits,
+        # agora o glossário é só link (não tentamos cache)
+        "glossario_hits": [],
         "glossario_source": GLOSSARY_URL,
-        "glossario_updated_at": (ensure_glossary_loaded().get("updated_at")),
+        "glossario_updated_at": None,
     }
 
 # =========================
@@ -1014,9 +635,6 @@ def analisar():
         flash("Cole um texto ou envie um arquivo para análise.", "error")
         return redirect(url_for("home"))
 
-    # garante glossário carregado (sem travar se falhar)
-    ensure_glossary_loaded(force_update=False)
-
     out = build_output(texto)
     return render_template("resultado.html", out=out, texto=texto, now=datetime.now())
 
@@ -1028,66 +646,7 @@ def biblioteca():
 
 @app.get("/glossario")
 def glossario():
-    """
-    Tela do glossário. Se você criar um template 'glossario.html', ótimo.
-    Se não existir, entrega uma página simples com busca.
-    """
-    cache = ensure_glossary_loaded(force_update=False)
-    updated_at = cache.get("updated_at")
-    total = len(cache.get("items") or [])
-
-    try:
-        return render_template(
-            "glossario.html",
-            source=GLOSSARY_URL,
-            updated_at=updated_at,
-            total=total
-        )
-    except TemplateNotFound:
-        # fallback simples para não quebrar em deploy
-        return f"""
-        <html><head><meta charset="utf-8"><title>Glossário STF — Lumen</title></head>
-        <body style="font-family: Arial, sans-serif; padding: 16px;">
-          <h1>Glossário STF</h1>
-          <p>Fonte: <a href="{GLOSSARY_URL}" target="_blank" rel="noopener">STF</a></p>
-          <p>Atualizado em: {updated_at or "—"} • Itens em cache: {total}</p>
-          <hr/>
-          <h3>Buscar termo</h3>
-          <form method="get" action="/api/glossario" onsubmit="event.preventDefault(); doSearch();">
-            <input id="q" placeholder="Ex.: habeas corpus" style="padding:8px; width:320px;" />
-            <button style="padding:8px;">Buscar</button>
-          </form>
-          <pre id="out" style="white-space: pre-wrap; margin-top: 12px;"></pre>
-          <script>
-            async function doSearch(){{
-              const q = document.getElementById('q').value;
-              const res = await fetch('/api/glossario?q=' + encodeURIComponent(q));
-              const data = await res.json();
-              document.getElementById('out').textContent = JSON.stringify(data, null, 2);
-            }}
-          </script>
-        </body></html>
-        """
-
-
-@app.get("/api/glossario")
-def api_glossario():
-    q = (request.args.get("q") or "").strip()
-    if not q:
-        return jsonify({"q": q, "items": []})
-    items = glossary_search(q, limit=12)
-    return jsonify({"q": q, "items": items, "source": GLOSSARY_URL})
-
-
-@app.post("/admin/glossario/atualizar")
-def admin_glossario_atualizar():
-    """
-    Endpoint simples para forçar atualização do cache (se você quiser chamar via botão).
-    Segurança: se você tiver login/admin, proteja esta rota.
-    """
-    ensure_glossary_loaded(force_update=True)
-    flash("Glossário: tentativa de atualização realizada (se a internet estiver disponível).", "success")
-    return redirect(url_for("glossario"))
+    return redirect(GLOSSARY_URL)
 
 
 @app.get("/sobre")
@@ -1097,5 +656,4 @@ def sobre():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
-    # Em produção (Render), debug=False mesmo.
     app.run(host="0.0.0.0", port=port, debug=False)
