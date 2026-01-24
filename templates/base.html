@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{% block title %}Lumen Jurídico{% endblock %}</title>
 
-  <!-- Fonte (opcional; se não carregar, cai no system-ui) -->
+  <!-- Fonte (opcional) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 
-  <!-- Seu CSS -->
+  <!-- CSS do projeto -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
@@ -34,7 +34,6 @@
   </header>
 
   <main class="container">
-    {# Flash messages #}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, msg in messages %}
@@ -48,9 +47,9 @@
 
   <footer class="footer">
     <div class="container footer-inner">
-      <div>© {{ now().year if now is defined else "" }} Lumen Jurídico</div>
+      <div>© Lumen Jurídico</div>
       <div>
-        <a href="{{ url_for('glossario') }}" style="text-decoration:none; color:var(--muted);">
+        <a href="{{ url_for('glossario') }}" style="color:var(--muted); text-decoration:none;">
           Glossário STF
         </a>
       </div>
