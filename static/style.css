@@ -91,20 +91,6 @@ body{
   color:var(--muted);
 }
 
-.brand-title{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-}
-
-.brand-icon{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  color:var(--accent);
-  transform:translateY(1px);
-}
-
 /* =========================
    NAV
    ========================= */
@@ -146,10 +132,6 @@ body{
   font-size:16px;
   margin-top:12px;
   line-height:1.6;
-}
-
-.hero .muted{
-  margin-top:10px;
   max-width:760px;
 }
 
@@ -263,31 +245,46 @@ input[type="file"]{
 }
 
 /* =========================
-   BOTÕES
+   BOTÕES (PADRONIZADOS)
    ========================= */
 
-.row{
+/* container de ações */
+.actions{
   display:flex;
   gap:12px;
   flex-wrap:wrap;
-  margin-top:16px;
+  margin-top:18px;
 }
 
+/* botão base */
 .btn{
-  padding:10px 18px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:160px;          /* 🔑 PADRONIZA LARGURA */
+  height:42px;              /* 🔑 PADRONIZA ALTURA */
+  padding:0 18px;
   border-radius:10px;
-  border:1px solid var(--accent);
-  background:var(--accent);
-  color:#ffffff;
+  font-size:14px;
   font-weight:600;
   cursor:pointer;
   text-decoration:none;
+  border:1px solid transparent;
+  transition:background .15s ease, border .15s ease;
 }
 
-.btn:hover{
+/* botão principal */
+.btn.primary{
+  background:var(--accent);
+  color:#ffffff;
+  border-color:var(--accent);
+}
+
+.btn.primary:hover{
   background:var(--accent-hover);
 }
 
+/* botão secundário */
 .btn.secondary{
   background:#ffffff;
   color:var(--text);
@@ -298,125 +295,16 @@ input[type="file"]{
   background:#f9fafb;
 }
 
+/* botão de risco */
 .btn.danger{
   background:#ffffff;
   color:var(--danger);
   border-color:var(--danger);
 }
 
-/* =========================
-   LISTAS / LINKS
-   ========================= */
-
-ul{
-  padding-left:18px;
-  margin:8px 0 0;
-}
-
-.links{
-  list-style:none;
-  padding:0;
-  margin:10px 0 0;
-}
-
-.links li{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  padding:8px 0;
-  border-bottom:1px dashed var(--border);
-}
-
-.links a{
-  text-decoration:none;
-  color:var(--accent);
-}
-
-.links a:hover{
-  text-decoration:underline;
-}
-
-.pill{
-  font-size:12px;
-  padding:4px 8px;
-  border-radius:999px;
-  border:1px solid var(--border);
-  background:#f9fafb;
-}
-
-/* =========================
-   BLOCOS DE TEXTO
-   ========================= */
-
-.pre{
-  background:#f9fafb;
-  border:1px dashed var(--border);
-  border-radius:10px;
-  padding:14px;
-  white-space:pre-wrap;
-  font-size:13px;
-  line-height:1.6;
-}
-
-/* =========================
-   TABELAS
-   ========================= */
-
-.table{
-  width:100%;
-  border-collapse:collapse;
-}
-
-.table th,
-.table td{
-  padding:12px;
-  border-bottom:1px solid var(--border);
-  text-align:left;
-}
-
-.table th{
-  font-size:13px;
-  color:var(--muted);
-  font-weight:600;
-}
-
-/* =========================
-   FLASH
-   ========================= */
-
-.flash{
-  padding:14px;
-  border-radius:10px;
-  margin-bottom:10px;
-}
-
-.flash.success{
-  border:1px solid var(--success);
-  color:var(--success);
-  background:#ecfdf3;
-}
-
-.flash.error{
-  border:1px solid var(--danger);
-  color:var(--danger);
+.btn.danger:hover{
   background:#fef2f2;
 }
 
 /* =========================
-   FOOTER
-   ========================= */
-
-.footer{
-  border-top:1px solid var(--border);
-  margin-top:36px;
-}
-
-.footer-inner{
-  display:flex;
-  justify-content:space-between;
-  flex-wrap:wrap;
-  gap:12px;
-  color:var(--muted);
-  font-size:13px;
-}
+   L
