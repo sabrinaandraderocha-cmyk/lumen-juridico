@@ -27,6 +27,49 @@ app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # 8 MB
 ALLOWED_EXTS = {".pdf", ".docx"}
 
 # =========================
+# Biblioteca (base) — usada no /biblioteca e nas sugestões
+# =========================
+LIBRARY_LINKS = [
+    # Constituição
+    {"key": "CF_PDF", "titulo": "Constituição Federal (PDF – DOU)", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/DOUconstituicao88.pdf", "tipo": "Constituição"},
+    {"key": "CF_HTML", "titulo": "Constituição Federal (texto compilado)", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", "tipo": "Constituição"},
+
+    # Códigos fundamentais
+    {"key": "CC", "titulo": "Código Civil", "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm", "tipo": "Código"},
+    {"key": "CPC", "titulo": "Código de Processo Civil (CPC)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm", "tipo": "Código"},
+    {"key": "CP", "titulo": "Código Penal (CP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm", "tipo": "Código"},
+    {"key": "CPP", "titulo": "Código de Processo Penal (CPP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm", "tipo": "Código"},
+    {"key": "CLT", "titulo": "Consolidação das Leis do Trabalho (CLT)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm", "tipo": "Código • Trabalho"},
+    {"key": "CDC", "titulo": "Código de Defesa do Consumidor (CDC)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm", "tipo": "Código • Consumidor"},
+    {"key": "CTN", "titulo": "Código Tributário Nacional (CTN)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm", "tipo": "Código • Tributário"},
+
+    # Administrativo
+    {"key": "LIC", "titulo": "Lei de Licitações e Contratos (Lei 14.133/2021)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm", "tipo": "Lei Administrativa"},
+    {"key": "LPA", "titulo": "Lei do Processo Administrativo (Lei 9.784/1999)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l9784.htm", "tipo": "Lei Administrativa"},
+    {"key": "LIA", "titulo": "Lei de Improbidade Administrativa (Lei 8.429/1992)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm", "tipo": "Lei Administrativa"},
+
+    # Previdenciário
+    {"key": "LBPS", "titulo": "Lei de Benefícios da Previdência (Lei 8.213/1991)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8213cons.htm", "tipo": "Lei Previdenciária"},
+
+    # Eleitoral
+    {"key": "CE", "titulo": "Código Eleitoral", "url": "https://www.planalto.gov.br/ccivil_03/leis/l4737.htm", "tipo": "Código • Eleitoral"},
+    {"key": "LEI_ELEICOES", "titulo": "Lei das Eleições (Lei 9.504/1997)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l9504.htm", "tipo": "Lei Eleitoral"},
+
+    # Família / criança / proteção
+    {"key": "ECA", "titulo": "Estatuto da Criança e do Adolescente (ECA)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm", "tipo": "Estatuto"},
+    {"key": "MPENHA", "titulo": "Lei Maria da Penha (Lei 11.340/2006)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm", "tipo": "Lei Especial"},
+    {"key": "IDOSO", "titulo": "Estatuto do Idoso (Lei 10.741/2003)", "url": "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.741.htm", "tipo": "Estatuto"},
+
+    # Direitos humanos
+    {"key": "PSSJ", "titulo": "Pacto de San José da Costa Rica (Decreto 678/1992)", "url": "https://www.planalto.gov.br/ccivil_03/decreto/d0678.htm", "tipo": "Tratado Internacional"},
+
+    # Portais e bibliotecas
+    {"key": "PORTAL_PLANALTO", "titulo": "Portal da Legislação – Planalto", "url": "https://www4.planalto.gov.br/legislacao/portal-legis", "tipo": "Portal Oficial"},
+    {"key": "LIVROS_ABERTOS", "titulo": "Livros Abertos – Direito (acesso aberto)", "url": "https://www.livrosabertos.abcd.usp.br/portaldelivrosUSP/catalog/category/direito", "tipo": "Livros acadêmicos"},
+    {"key": "OAB", "titulo": "Biblioteca Digital da OAB", "url": "http://www.oab.org.br/biblioteca-digital/publicacoes#", "tipo": "OAB"},
+]
+
+# =========================
 # Linguagem / stopwords
 # =========================
 STOPWORDS_PT = {
@@ -88,7 +131,7 @@ def extract_legal_citations(text: str, limit=10):
         r"\blei\s*n[ºo]\s*\d[\d\.\-]*\s*(?:/|\s*de\s*)\s*\d{2,4}\b",
         r"\bdecreto-lei\s*n[ºo]\s*\d[\d\.\-]*\b",
         r"\bconstitui[cç][aã]o\s*federal\b|\bCF/88\b|\bCF\b",
-        r"\bCPC\b|\bCPP\b|\bCP\b|\bCLT\b|\bCDC\b"
+        r"\bCPC\b|\bCPP\b|\bCP\b|\bCLT\b|\bCDC\b|\bCTN\b"
     ]
     found = []
     for pat in patterns:
@@ -151,8 +194,52 @@ def pick_best_question(text: str, fallback_base: str) -> str:
         return f"Qual é a controvérsia jurídica central envolvendo {', '.join(kws)}?"
     return "Qual é a controvérsia jurídica central do caso?"
 
+def suggest_library_links(text: str, max_items: int = 6):
+    t = (text or "").lower()
+
+    patterns = [
+        (r"\bcf\b|\bcf/88\b|constitui", ["CF_HTML"]),
+        (r"\bcpc\b|processo civil|art\.\s*1\.?0?13|art\.\s*927", ["CPC"]),
+        (r"\bcpp\b|processo penal|habeas corpus", ["CPP"]),
+        (r"\bcp\b|c[oó]digo penal|dolo|culpa|tipicidade", ["CP"]),
+        (r"\bclt\b|trabalh|reclama[cç][aã]o trabalhista", ["CLT"]),
+        (r"\bcdc\b|consumidor|fornecedor|rela[cç][aã]o de consumo", ["CDC"]),
+        (r"\bctn\b|tribut[aá]rio|lan[cç]amento|credito tribut", ["CTN"]),
+        (r"\beca\b|crian[cç]a|adolesc", ["ECA"]),
+        (r"maria da penha|viol[eê]ncia dom[eé]stica", ["MPENHA"]),
+        (r"\bidoso\b|estatuto do idoso", ["IDOSO"]),
+        (r"improbidade|l\.?\s*8429|lei\s*8\.?429", ["LIA"]),
+        (r"processo administrativo|l\.?\s*9784|lei\s*9\.?784", ["LPA"]),
+        (r"licita[cç][aã]o|lei\s*14\.?133|l\.?\s*14133", ["LIC"]),
+        (r"previd[eê]ncia|benef[ií]cio|aposentadoria|lei\s*8\.?213|l\.?\s*8213", ["LBPS"]),
+        (r"direitos humanos|pacto de san jos[eé]|decreto\s*678|d\.?\s*678", ["PSSJ"]),
+        (r"elei[cç][aã]o|tse|c[oó]digo eleitoral", ["CE", "LEI_ELEICOES"]),
+    ]
+
+    keys = []
+    for pat, ks in patterns:
+        if re.search(pat, t, flags=re.I):
+            for k in ks:
+                if k not in keys:
+                    keys.append(k)
+
+    # fallback: sempre úteis
+    for k in ["PORTAL_PLANALTO", "LIVROS_ABERTOS", "OAB"]:
+        if k not in keys:
+            keys.append(k)
+
+    by_key = {i["key"]: i for i in LIBRARY_LINKS}
+    out = []
+    for k in keys:
+        item = by_key.get(k)
+        if item:
+            out.append(item)
+        if len(out) >= max_items:
+            break
+    return out
+
 # =========================
-# Núcleo da análise (compatível com resultado.html completo)
+# Núcleo da análise
 # =========================
 def build_output(text: str):
     text = normalize(text)
@@ -184,6 +271,8 @@ def build_output(text: str):
     keywords = pick_keywords(ementa, k=6)
     alerta = analyze_quality(text)
 
+    sugestoes = suggest_library_links(text, max_items=6)
+
     low = text.lower()
     hints = []
     if any(w in low for w in ["concurso", "prova objetiva", "questão", "exame da ordem", "oab"]):
@@ -204,6 +293,7 @@ def build_output(text: str):
         "aplicacao": " ".join(hints).strip(),
         "ementa": ementa.strip(),
         "alerta": alerta,
+        "sugestoes": sugestoes,
     }
 
 # =========================
@@ -286,163 +376,8 @@ def analisar():
 
 @app.get("/biblioteca")
 def biblioteca():
-    links = [
-        # =========================
-        # CONSTITUIÇÃO
-        # =========================
-        {
-            "titulo": "Constituição Federal (PDF – DOU)",
-            "url": "https://www.planalto.gov.br/ccivil_03/constituicao/DOUconstituicao88.pdf",
-            "tipo": "Constituição"
-        },
-        {
-            "titulo": "Constituição Federal (texto compilado)",
-            "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm",
-            "tipo": "Constituição"
-        },
-
-        # =========================
-        # CÓDIGOS FUNDAMENTAIS
-        # =========================
-        {
-            "titulo": "Código Civil",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm",
-            "tipo": "Código"
-        },
-        {
-            "titulo": "Código de Processo Civil (CPC)",
-            "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm",
-            "tipo": "Código"
-        },
-        {
-            "titulo": "Código Penal (CP)",
-            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm",
-            "tipo": "Código"
-        },
-        {
-            "titulo": "Código de Processo Penal (CPP)",
-            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm",
-            "tipo": "Código"
-        },
-
-        # =========================
-        # DIREITO DO TRABALHO
-        # =========================
-        {
-            "titulo": "Consolidação das Leis do Trabalho (CLT)",
-            "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm",
-            "tipo": "Código • Trabalho"
-        },
-
-        # =========================
-        # DIREITO DO CONSUMIDOR
-        # =========================
-        {
-            "titulo": "Código de Defesa do Consumidor (CDC)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm",
-            "tipo": "Código • Consumidor"
-        },
-
-        # =========================
-        # DIREITO ADMINISTRATIVO
-        # =========================
-        {
-            "titulo": "Lei de Licitações e Contratos Administrativos (Lei 14.133/2021)",
-            "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm",
-            "tipo": "Lei Administrativa"
-        },
-        {
-            "titulo": "Lei do Processo Administrativo Federal (Lei 9.784/1999)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/l9784.htm",
-            "tipo": "Lei Administrativa"
-        },
-        {
-            "titulo": "Lei de Improbidade Administrativa (Lei 8.429/1992)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm",
-            "tipo": "Lei Administrativa"
-        },
-
-        # =========================
-        # DIREITO TRIBUTÁRIO
-        # =========================
-        {
-            "titulo": "Código Tributário Nacional (CTN)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm",
-            "tipo": "Código • Tributário"
-        },
-
-        # =========================
-        # DIREITO PREVIDENCIÁRIO
-        # =========================
-        {
-            "titulo": "Lei de Benefícios da Previdência Social (Lei 8.213/1991)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8213cons.htm",
-            "tipo": "Lei Previdenciária"
-        },
-
-        # =========================
-        # DIREITO ELEITORAL
-        # =========================
-        {
-            "titulo": "Código Eleitoral",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/l4737.htm",
-            "tipo": "Código • Eleitoral"
-        },
-        {
-            "titulo": "Lei das Eleições (Lei 9.504/1997)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/l9504.htm",
-            "tipo": "Lei Eleitoral"
-        },
-
-        # =========================
-        # DIREITO DA CRIANÇA E FAMÍLIA
-        # =========================
-        {
-            "titulo": "Estatuto da Criança e do Adolescente (ECA)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm",
-            "tipo": "Estatuto"
-        },
-        {
-            "titulo": "Lei Maria da Penha (Lei 11.340/2006)",
-            "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm",
-            "tipo": "Lei Especial"
-        },
-        {
-            "titulo": "Estatuto do Idoso (Lei 10.741/2003)",
-            "url": "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.741.htm",
-            "tipo": "Estatuto"
-        },
-
-        # =========================
-        # DIREITOS HUMANOS
-        # =========================
-        {
-            "titulo": "Convenção Americana de Direitos Humanos (Pacto de San José da Costa Rica)",
-            "url": "https://www.planalto.gov.br/ccivil_03/decreto/d0678.htm",
-            "tipo": "Tratado Internacional"
-        },
-
-        # =========================
-        # PORTAIS E BIBLIOTECAS
-        # =========================
-        {
-            "titulo": "Portal da Legislação – Planalto",
-            "url": "https://www4.planalto.gov.br/legislacao/portal-legis",
-            "tipo": "Portal Oficial"
-        },
-        {
-            "titulo": "Livros Abertos – Direito (acesso aberto)",
-            "url": "https://www.livrosabertos.abcd.usp.br/portaldelivrosUSP/catalog/category/direito",
-            "tipo": "Livros acadêmicos"
-        },
-        {
-            "titulo": "Biblioteca Digital da OAB",
-            "url": "http://www.oab.org.br/biblioteca-digital/publicacoes#",
-            "tipo": "OAB"
-        }
-    ]
-
-    return render_template("biblioteca.html", links=links)
+    # mostra a biblioteca completa
+    return render_template("biblioteca.html", links=LIBRARY_LINKS)
 
 @app.get("/sobre")
 def sobre():
