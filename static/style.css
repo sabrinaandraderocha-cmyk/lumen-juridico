@@ -3,6 +3,10 @@
    AZUL • LIMPO • INSTITUCIONAL
    ========================= */
 
+/* =========================
+   VARIÁVEIS
+   ========================= */
+
 :root{
   /* Base */
   --bg:#f4f6fa;
@@ -22,7 +26,13 @@
   --success:#166534;
 }
 
-*{box-sizing:border-box}
+/* =========================
+   RESET / BASE
+   ========================= */
+
+*{
+  box-sizing:border-box;
+}
 
 body{
   margin:0;
@@ -30,6 +40,18 @@ body{
   background:var(--bg);
   color:var(--text);
   line-height:1.55;
+}
+
+a{
+  color:inherit;
+}
+
+p{
+  margin:0;
+}
+
+.muted{
+  color:var(--muted);
 }
 
 /* =========================
@@ -43,7 +65,7 @@ body{
 }
 
 /* =========================
-   TOPO
+   TOPO / HEADER
    ========================= */
 
 .topbar{
@@ -71,14 +93,16 @@ body{
   gap:14px;
 }
 
-.logo{
-  width:42px;
-  height:42px;
-  border-radius:10px;
-  background:linear-gradient(135deg, var(--accent), var(--accent-hover));
-  box-shadow:
-    0 4px 12px rgba(0,0,0,.12),
-    inset 0 0 0 1px rgba(255,255,255,.25);
+/* 🔑 ÍCONE DA LÂMPADA (SEM FUNDO) */
+.brand-icon{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--accent);
+}
+
+.brand-icon svg{
+  display:block;
 }
 
 .brand-name{
@@ -153,19 +177,6 @@ body{
   height:8px;
   border-radius:999px;
   background:var(--accent);
-  display:inline-block;
-}
-
-/* =========================
-   TEXTOS
-   ========================= */
-
-.muted{
-  color:var(--muted);
-}
-
-p{
-  margin:0;
 }
 
 /* =========================
@@ -245,10 +256,9 @@ input[type="file"]{
 }
 
 /* =========================
-   BOTÕES (PADRONIZADOS)
+   BOTÕES
    ========================= */
 
-/* container de ações */
 .actions{
   display:flex;
   gap:12px;
@@ -256,13 +266,12 @@ input[type="file"]{
   margin-top:18px;
 }
 
-/* botão base */
 .btn{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  min-width:160px;          /* 🔑 PADRONIZA LARGURA */
-  height:42px;              /* 🔑 PADRONIZA ALTURA */
+  min-width:160px;
+  height:42px;
   padding:0 18px;
   border-radius:10px;
   font-size:14px;
@@ -273,7 +282,7 @@ input[type="file"]{
   transition:background .15s ease, border .15s ease;
 }
 
-/* botão principal */
+/* Primário */
 .btn.primary{
   background:var(--accent);
   color:#ffffff;
@@ -284,7 +293,7 @@ input[type="file"]{
   background:var(--accent-hover);
 }
 
-/* botão secundário */
+/* Secundário */
 .btn.secondary{
   background:#ffffff;
   color:var(--text);
@@ -295,7 +304,7 @@ input[type="file"]{
   background:#f9fafb;
 }
 
-/* botão de risco */
+/* Perigo */
 .btn.danger{
   background:#ffffff;
   color:var(--danger);
@@ -307,4 +316,44 @@ input[type="file"]{
 }
 
 /* =========================
-   L
+   FLASH MESSAGES
+   ========================= */
+
+.flash{
+  padding:12px 16px;
+  border-radius:10px;
+  margin-bottom:14px;
+  font-size:14px;
+  border:1px solid transparent;
+}
+
+.flash.error{
+  background:#fef2f2;
+  color:#7f1d1d;
+  border-color:#fecaca;
+}
+
+.flash.success{
+  background:#ecfdf5;
+  color:#065f46;
+  border-color:#a7f3d0;
+}
+
+/* =========================
+   FOOTER
+   ========================= */
+
+.footer{
+  border-top:1px solid var(--border);
+  background:#ffffff;
+  margin-top:40px;
+}
+
+.footer-inner{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:13px;
+  color:var(--muted);
+}
+
