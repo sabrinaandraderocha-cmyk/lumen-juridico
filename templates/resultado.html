@@ -1,4 +1,4 @@
-{% extends "base.html" %} 
+{% extends "base.html" %}
 {% block title %}Resultado • Lumen Jurídico{% endblock %}
 
 {% block content %}
@@ -8,10 +8,14 @@
       Gerado em {{ now.strftime("%d/%m/%Y %H:%M") }} • revise antes de usar em estudo/peça.
     </p>
 
-    <div class="row" style="margin-top:12px;">
+    <div class="row" style="margin-top:12px; flex-wrap:wrap; gap:10px;">
       <button class="btn" type="button" onclick="copyReport()">Copiar relatório</button>
+      {% if out.queries_juris and out.queries_juris|length > 0 %}
+        <button class="btn secondary" type="button" onclick="copyQueries()">Copiar queries</button>
+      {% endif %}
       <a class="btn secondary" href="{{ url_for('home') }}">Nova análise</a>
       <a class="btn secondary" href="{{ url_for('biblioteca') }}">Biblioteca</a>
+      <a class="btn secondary" href="{{ url_for('glossario') }}">Glossário</a>
     </div>
 
     {% if out.alerta %}
@@ -20,6 +24,32 @@
       </div>
     {% endif %}
   </section>
+
+  {# ✅ NOVO: barra de “qualidade / confiança” #}
+  {% if out.confianca %}
+    <section class="card" style="margin-top:14px;">
+      <h2>Confiabilidade da estrutura</h2>
+      <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+        <span class="pill">
+          Nível: <strong style="text-transform:uppercase;">{{ out.confianca.nivel }}</strong>
+        </span>
+        <div style="flex:1; height:10px; border-radius:999px; background:#eef2ff; overflow:hidden; border:1px solid var(--border);">
+          <div style="height:100%; width:{{ out.confianca.score }}%; background:#2563eb;"></div>
+        </div>
+        <span class="muted" style="min-width:48px; text-align:right;">{{ out.confianca.score }}%</span>
+      </div>
+      {% if out.confianca.motivos and out.confianca.motivos|length > 0 %}
+        <ul style="margin-top:10px;">
+          {% for m in out.confianca.motivos %}
+            <li class="muted">{{ m }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <p class="muted" style="margin-top:10px;">
+        Quanto mais fatos, pedido e resultado (deferiu/negou/proveu), mais “cirúrgica” fica a síntese.
+      </p>
+    </section>
+  {% endif %}
 
   {# ✅ NOVO: atalhos recomendados com base no texto analisado #}
   {% if out.sugestoes and out.sugestoes|length > 0 %}
@@ -40,7 +70,7 @@
   {% endif %}
 
   {% if out.keywords and out.keywords|length > 0 %}
-    <section class="card">
+    <section class="card" style="margin-top:14px;">
       <h2>Palavras-chave</h2>
       <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
         {% for k in out.keywords %}
@@ -60,9 +90,171 @@
     </section>
   {% endif %}
 
-  <section class="grid2">
+  {# ✅ NOVO: glossário — termos detectados #}
+  {% if out.glossario_hits and out.glossario_hits|length > 0 %}
+    <section class="card" style="margin-top:14px;">
+      <div class="row" style="justify-content:space-between; align-items:flex-end; gap:10px; flex-wrap:wrap;">
+        <div>
+          <h2>Termos jurídicos (Glossário do STF)</h2>
+          <p class="muted" style="margin-top:6px;">
+            Detectados automaticamente no texto. Fonte:
+            <a href="{{ out.glossario_source }}" target="_blank" rel="noopener noreferrer">STF</a>
+            {% if out.glossario_updated_at %} • cache: {{ out.glossario_updated_at }}{% endif %}
+          </p>
+        </div>
+        <div>
+          <a class="btn secondary" href="{{ url_for('glossario') }}">Abrir glossário</a>
+        </div>
+      </div>
+
+      <div style="margin-top:10px; display:grid; grid-template-columns:1fr; gap:10px;">
+        {% for it in out.glossario_hits %}
+          <details class="card" style="margin:0;">
+            <summary style="cursor:pointer;">
+              <strong>{{ it.term }}</strong>
+              <span class="muted"> — clique para ver definição</span>
+            </summary>
+            <div style="margin-top:10px; line-height:1.6;">
+              {{ it.definition }}
+            </div>
+          </details>
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {# ✅ NOVO: resumo + blocos processuais #}
+  <section class="card" style="margin-top:14px;">
+    <h2>Síntese (rápida)</h2>
+    {% if out.resumo %}
+      <p style="line-height:1.6; font-size:15px;">{{ out.resumo }}</p>
+    {% else %}
+      <p class="muted">Sem resumo automático (texto muito curto ou sem blocos claros).</p>
+    {% endif %}
+
+    <div class="grid2" style="margin-top:12px;">
+      <div class="card" style="margin:0;">
+        <h3 style="margin:0 0 8px 0;">Relatório / contexto</h3>
+        {% if out.relatorio %}
+          <details>
+            <summary>Ver/ocultar</summary>
+            <pre class="pre" style="margin-top:10px;">{{ out.relatorio }}</pre>
+          </details>
+        {% else %}
+          <p class="muted">Não identificado automaticamente.</p>
+        {% endif %}
+      </div>
+
+      <div class="card" style="margin:0;">
+        <h3 style="margin:0 0 8px 0;">Dispositivo / resultado</h3>
+        {% if out.dispositivo %}
+          <details>
+            <summary>Ver/ocultar</summary>
+            <pre class="pre" style="margin-top:10px;">{{ out.dispositivo }}</pre>
+          </details>
+        {% else %}
+          <p class="muted">Não identificado automaticamente.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px;">
+      <h3 style="margin:0 0 8px 0;">Fundamentação (trecho)</h3>
+      {% if out.fundamentacao %}
+        <details>
+          <summary>Ver/ocultar</summary>
+          <pre class="pre" style="margin-top:10px;">{{ out.fundamentacao }}</pre>
+        </details>
+      {% else %}
+        <p class="muted">Não identificado automaticamente.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ✅ NOVO: pergunta objetiva + variantes (modo “jurisprudência”) #}
+  <section class="card" style="margin-top:14px;">
+    <h2>Pergunta jurídica (melhor para pesquisa)</h2>
+
+    {% if out.pergunta_objetiva %}
+      <p style="font-size:16px; line-height:1.5;">
+        <strong>{{ out.pergunta_objetiva }}</strong>
+      </p>
+      {% if out.perguntas_variantes and out.perguntas_variantes|length > 0 %}
+        <ul style="margin-top:10px;">
+          {% for q in out.perguntas_variantes %}
+            <li>{{ q }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% else %}
+      <p style="font-size:16px; line-height:1.5;">
+        <strong>{{ out.pergunta }}</strong>
+      </p>
+    {% endif %}
+
+    <p class="muted" style="margin-top:10px;">
+      Dica: copie uma variante, troque X e Y pelos fatos do seu caso e pesquise por precedentes.
+    </p>
+  </section>
+
+  {# ✅ NOVO: queries prontas #}
+  {% if out.queries_juris and out.queries_juris|length > 0 %}
+    <section class="card" style="margin-top:14px;">
+      <h2>Queries prontas (copiar e colar)</h2>
+      <ol style="margin-top:10px;">
+        {% for q in out.queries_juris %}
+          <li style="margin-bottom:8px;">
+            <code style="display:block; padding:10px; border-radius:10px; border:1px solid var(--border); background:#f9fafb;">
+              {{ q }}
+            </code>
+          </li>
+        {% endfor %}
+      </ol>
+      <p class="muted" style="margin-top:10px;">
+        Sugestão: use em busca do STF/STJ/TJs e refine adicionando “prisão preventiva”, “tutela”, “dano moral”, etc.
+      </p>
+    </section>
+  {% endif %}
+
+  {# ✅ NOVO: pontos controvertidos + checklist #}
+  <section class="grid2" style="margin-top:14px;">
     <div class="card">
-      <h2>Pergunta jurídica</h2>
+      <h2>Pontos controvertidos</h2>
+      {% if out.pontos_controvertidos and out.pontos_controvertidos|length > 0 %}
+        <ul style="margin-top:10px;">
+          {% for p in out.pontos_controvertidos %}
+            <li>{{ p }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">Não foi possível identificar automaticamente.</p>
+      {% endif %}
+      <p class="muted" style="margin-top:10px;">
+        Use isso para delimitar o tema do caso e evitar citações “fora de mira”.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Checklist prático</h2>
+      {% if out.checklist and out.checklist|length > 0 %}
+        <ul style="margin-top:10px;">
+          {% for c in out.checklist %}
+            <li>{{ c }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">Sem checklist automático.</p>
+      {% endif %}
+      <p class="muted" style="margin-top:10px;">
+        Dica: responda cada item com 1 frase + 1 prova (página/ID do documento).
+      </p>
+    </div>
+  </section>
+
+  {# ✅ SEÇÃO ORIGINAL (mantida, mas agora mais “rica”) #}
+  <section class="grid2" style="margin-top:14px;">
+    <div class="card">
+      <h2>Pergunta jurídica (do texto)</h2>
       <p style="font-size:16px; line-height:1.5;">
         <strong>{{ out.pergunta }}</strong>
       </p>
@@ -74,7 +266,6 @@
     <div class="card">
       <h2>Tese (núcleo decisório)</h2>
 
-      {# Mostra regra/exceção quando existir; senão, mostra tese #}
       {% if out.tese_regra %}
         <p style="line-height:1.55;"><strong>Regra:</strong> {{ out.tese_regra }}</p>
         {% if out.tese_excecao %}
@@ -135,7 +326,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" style="margin-top:14px;">
     <h2>Texto original (analisado)</h2>
     <details>
       <summary>Ver/ocultar</summary>
@@ -146,16 +337,57 @@
   <textarea id="copyBuffer" style="position:absolute; left:-9999px; top:-9999px;"></textarea>
 
   <script>
+    function copyTextToClipboard(text){
+      if (navigator.clipboard && navigator.clipboard.writeText){
+        return navigator.clipboard.writeText(text);
+      }
+      return new Promise((resolve, reject) => {
+        const buf = document.getElementById("copyBuffer");
+        buf.value = text;
+        buf.select();
+        const ok = document.execCommand("copy");
+        ok ? resolve() : reject();
+      });
+    }
+
+    function copyQueries(){
+      const queries = {{ (out.queries_juris or [])|tojson }};
+      const payload =
+`LUMEN JURÍDICO — QUERIES PRONTAS
+Data/hora: {{ now.strftime("%d/%m/%Y %H:%M") }}
+
+${queries.length ? queries.map((q, i) => (i+1) + ") " + q).join("\\n\\n") : "(sem queries)"}
+`;
+      copyTextToClipboard(payload).then(() => alert("Queries copiadas ✅"));
+    }
+
     function copyReport(){
       const pergunta = {{ out.pergunta|tojson }};
+      const perguntaObj = {{ (out.pergunta_objetiva or "")|tojson }};
+      const variantes = {{ (out.perguntas_variantes or [])|tojson }};
+
       const tese = {{ out.tese|tojson }};
       const regra = {{ (out.tese_regra or "")|tojson }};
       const excecao = {{ (out.tese_excecao or "")|tojson }};
+
       const normas = {{ (out.fundamentos_normas or [])|tojson }};
       const juris = {{ (out.fundamentos_juris or [])|tojson }};
       const aplicacao = {{ out.aplicacao|tojson }};
       const ementa = {{ out.ementa|tojson }};
       const kws = {{ (out.keywords or [])|tojson }};
+
+      const resumo = {{ (out.resumo or "")|tojson }};
+      const relatorio = {{ (out.relatorio or "")|tojson }};
+      const fundamentacao = {{ (out.fundamentacao or "")|tojson }};
+      const dispositivo = {{ (out.dispositivo or "")|tojson }};
+
+      const controv = {{ (out.pontos_controvertidos or [])|tojson }};
+      const queries = {{ (out.queries_juris or [])|tojson }};
+      const checklist = {{ (out.checklist or [])|tojson }};
+
+      const conf = {{ (out.confianca or {})|tojson }};
+
+      const gloss = {{ (out.glossario_hits or [])|tojson }};
 
       let teseTxt = tese;
       if (regra){
@@ -166,37 +398,62 @@
 `LUMEN JURÍDICO — RELATÓRIO DE LEITURA
 Data/hora: {{ now.strftime("%d/%m/%Y %H:%M") }}
 
+CONFIABILIDADE
+Nível: ${(conf && conf.nivel) ? conf.nivel.toUpperCase() : "—"} • Score: ${(conf && conf.score) ? conf.score : "—"}%
+${(conf && conf.motivos && conf.motivos.length) ? conf.motivos.map(x => "- " + x).join("\\n") : ""}
+
 PALAVRAS-CHAVE
 ${kws.length ? kws.join(", ") : "(não identificado)"}
 
-1) Pergunta jurídica
+1) Síntese rápida
+${resumo || "(não identificado)"}
+
+2) Pergunta jurídica (do texto)
 ${pergunta}
 
-2) Tese (núcleo decisório)
+3) Pergunta jurídica (melhor para pesquisa)
+${perguntaObj || "(não gerada)"}
+${variantes.length ? "\\nVariações:\\n" + variantes.map(x => "- " + x).join("\\n") : ""}
+
+4) Tese (núcleo decisório)
 ${teseTxt}
 
-3) Fundamentos — normas
+5) Pontos controvertidos
+${controv.length ? controv.map(x => "- " + x).join("\\n") : "- (não identificado)"}
+
+6) Fundamentos — normas
 ${normas.length ? normas.map(x => "- " + x).join("\\n") : "- (não identificado)"}
 
-4) Fundamentos — jurisprudência/temas
+7) Fundamentos — jurisprudência/temas
 ${juris.length ? juris.map(x => "- " + x).join("\\n") : "- (não identificado)"}
 
-5) Aplicação prática
+8) Queries prontas (copiar/colar)
+${queries.length ? queries.map((q,i)=> (i+1)+") "+q).join("\\n\\n") : "(sem queries)"}
+
+9) Checklist prático
+${checklist.length ? checklist.map(x => "- " + x).join("\\n") : "- (não gerado)"}
+
+10) Aplicação prática
 ${aplicacao}
 
-6) Ementa / trecho-base
+11) Blocos do texto (quando identificados)
+RELATÓRIO/CONTEXTO:
+${relatorio || "(não identificado)"}
+
+FUNDAMENTAÇÃO:
+${fundamentacao || "(não identificado)"}
+
+DISPOSITIVO/RESULTADO:
+${dispositivo || "(não identificado)"}
+
+12) Ementa / trecho-base
 ${ementa}
+
+13) Termos (Glossário STF)
+${gloss.length ? gloss.map(x => "- " + x.term + ": " + x.definition).join("\\n") : "(nenhum termo detectado)"}
 `;
 
-      if (navigator.clipboard && navigator.clipboard.writeText){
-        navigator.clipboard.writeText(texto).then(() => alert("Relatório copiado ✅"));
-      } else {
-        const buf = document.getElementById("copyBuffer");
-        buf.value = texto;
-        buf.select();
-        document.execCommand("copy");
-        alert("Relatório copiado ✅");
-      }
+      copyTextToClipboard(texto).then(() => alert("Relatório copiado ✅"));
     }
   </script>
 {% endblock %}
