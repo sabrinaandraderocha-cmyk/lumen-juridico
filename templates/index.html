@@ -16,15 +16,18 @@
 
     <div class="card" style="margin-top:14px;">
       <h2 style="margin:0 0 8px 0;">O que você recebe na análise</h2>
-      <ul style="margin:8px 0 0;">
-        <li><strong>Principal tema do texto</strong> (o assunto central)</li>
-        <li><strong>Normas / artigos citados</strong> (base legal identificada)</li>
-        <li><strong>Pra pesquisar</strong> (pergunta + palavras-chave + pesquisas prontas)</li>
-        <li><strong>Checklist prático</strong> (estudo e prova)</li>
-        <li><strong>Termos jurídicos importantes</strong> (tradução em linguagem simples)</li>
+
+      <ul style="margin:8px 0 0; padding-left:18px;">
+        <li><strong>Principal tema do texto</strong> — o assunto central da decisão</li>
+        <li><strong>Normas / artigos citados</strong> — base legal identificada</li>
+        <li><strong>Pra pesquisar</strong> — pergunta jurídica, palavras-chave e acesso à jurisprudência</li>
+        <li><strong>Checklist prático</strong> — apoio para estudo, prova e prática</li>
+        <li><strong>Termos jurídicos importantes</strong> — tradução em linguagem simples</li>
       </ul>
+
       <p class="muted" style="margin-top:10px;">
-        Dica: a análise funciona bem com a <strong>ementa</strong>. Com voto/acórdão, fica mais completa.
+        Dica: a análise funciona muito bem apenas com a <strong>ementa</strong>.
+        Com voto ou acórdão completo, o resultado tende a ficar ainda mais preciso.
       </p>
     </div>
   </section>
@@ -40,7 +43,7 @@
         id="texto"
         name="texto"
         rows="14"
-        placeholder="Cole aqui a ementa, o voto ou outro trecho da decisão..."
+        placeholder="Cole aqui a ementa, o voto ou outro trecho da decisão judicial..."
       ></textarea>
 
       <label for="arquivo" style="margin-top:14px;">
@@ -53,33 +56,47 @@
         accept=".pdf,.docx"
       >
 
-      <div class="row" style="margin-top:16px; gap:10px; flex-wrap:wrap;">
-        <button class="btn" type="submit">Analisar</button>
-        <a class="btn secondary" href="{{ url_for('biblioteca') }}">Biblioteca</a>
-        <a class="btn secondary" href="{{ url_for('glossario') }}">Glossário (STF)</a>
+      <!-- BOTÕES PADRONIZADOS -->
+      <div class="actions">
+        <button class="btn primary" type="submit">
+          Analisar decisão
+        </button>
+
+        <a class="btn secondary" href="{{ url_for('biblioteca') }}">
+          Biblioteca
+        </a>
+
+        <a class="btn secondary" href="{{ url_for('glossario') }}">
+          Glossário (STF)
+        </a>
       </div>
 
       <p class="muted" style="margin-top:12px;">
-        Privacidade: processamento local. Não enviamos seus textos para serviços de IA.
+        Privacidade: processamento local. Seus textos não são enviados para serviços de IA.
       </p>
     </form>
   </section>
 
   <style>
-    /* Ajustes locais do hero (não quebra seu CSS global) */
-    .hero { padding: 26px 0 10px; }
+    /* Ajustes locais do hero (não quebra o CSS global) */
+    .hero {
+      padding: 26px 0 10px;
+    }
+
     .hero h1 {
       font-size: 34px;
       line-height: 1.15;
       letter-spacing: -0.02em;
       margin: 10px 0 0 0;
     }
+
     .hero .lead {
       font-size: 16px;
       margin-top: 10px;
       line-height: 1.6;
       max-width: 760px;
     }
+
     .hero-badge{
       display:inline-flex;
       align-items:center;
@@ -92,6 +109,7 @@
       color:#334155;
       width: fit-content;
     }
+
     .hero-badge .dot{
       width:8px;
       height:8px;
