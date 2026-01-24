@@ -8,21 +8,25 @@
       Funciona localmente • sem IA externa
     </div>
 
-    <h1>Entenda decisões judiciais em minutos</h1>
+    <h1>Lumen Jurídico</h1>
 
     <p class="lead">
-      Cole a ementa, o voto ou um trecho do acórdão — ou envie um PDF/DOCX.
+      Leitura clara de decisões judiciais — do texto bruto ao que importa.
     </p>
 
-    <p class="muted">
-      O Lumen organiza o conteúdo em
-      <strong>pergunta jurídica</strong>,
-      <strong>tese</strong>,
-      <strong>fundamentos</strong>
-      e <strong>caminhos de aplicação e pesquisa</strong>,
-      facilitando a leitura técnica de decisões
-      em <strong>todos os ramos do Direito</strong>.
-    </p>
+    <div class="card" style="margin-top:14px;">
+      <h2 style="margin:0 0 8px 0;">O que você recebe na análise</h2>
+      <ul style="margin:8px 0 0;">
+        <li><strong>Principal tema do texto</strong> (o assunto central)</li>
+        <li><strong>Normas / artigos citados</strong> (base legal identificada)</li>
+        <li><strong>Pra pesquisar</strong> (pergunta + palavras-chave + pesquisas prontas)</li>
+        <li><strong>Checklist prático</strong> (estudo e prova)</li>
+        <li><strong>Termos jurídicos importantes</strong> (tradução em linguagem simples)</li>
+      </ul>
+      <p class="muted" style="margin-top:10px;">
+        Dica: a análise funciona bem com a <strong>ementa</strong>. Com voto/acórdão, fica mais completa.
+      </p>
+    </div>
   </section>
 
   <section class="card">
@@ -36,7 +40,7 @@
         id="texto"
         name="texto"
         rows="14"
-        placeholder="Cole aqui a ementa, o voto ou outro trecho da decisão judicial..."
+        placeholder="Cole aqui a ementa, o voto ou outro trecho da decisão..."
       ></textarea>
 
       <label for="arquivo" style="margin-top:14px;">
@@ -50,24 +54,20 @@
       >
 
       <div class="row" style="margin-top:16px; gap:10px; flex-wrap:wrap;">
-        <button class="btn" type="submit">Analisar decisão</button>
-        <a class="btn secondary" href="{{ url_for('biblioteca') }}">
-          Abrir Biblioteca
-        </a>
+        <button class="btn" type="submit">Analisar</button>
+        <a class="btn secondary" href="{{ url_for('biblioteca') }}">Biblioteca</a>
+        <a class="btn secondary" href="{{ url_for('glossario') }}">Glossário (STF)</a>
       </div>
 
       <p class="muted" style="margin-top:12px;">
-        Dica: a análise funciona bem apenas com a <strong>ementa</strong>.
-        Ao inserir o voto, o acórdão completo ou um arquivo,
-        o Lumen tenta identificar automaticamente
-        <strong>referências normativas e precedentes relevantes</strong>.
+        Privacidade: processamento local. Não enviamos seus textos para serviços de IA.
       </p>
     </form>
   </section>
 
   <style>
     /* Ajustes locais do hero (não quebra seu CSS global) */
-    .hero { padding: 26px 0; }
+    .hero { padding: 26px 0 10px; }
     .hero h1 {
       font-size: 34px;
       line-height: 1.15;
@@ -76,12 +76,9 @@
     }
     .hero .lead {
       font-size: 16px;
-      margin-top: 12px;
-      line-height: 1.6;
-    }
-    .hero .muted {
       margin-top: 10px;
-      max-width: 720px;
+      line-height: 1.6;
+      max-width: 760px;
     }
     .hero-badge{
       display:inline-flex;
@@ -99,7 +96,7 @@
       width:8px;
       height:8px;
       border-radius:999px;
-      background:#2563eb;
+      background: var(--accent);
       display:inline-block;
     }
   </style>
