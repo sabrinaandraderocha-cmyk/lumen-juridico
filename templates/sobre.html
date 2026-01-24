@@ -1,28 +1,80 @@
 {% extends "base.html" %}
 {% block title %}Sobre • Lumen Jurídico{% endblock %}
+
 {% block content %}
   <section class="hero">
-    <h1>Sobre o App</h1>
+    <h1>Sobre o Lumen Jurídico</h1>
+
+    <p class="lead">
+      Leitura jurídica clara, estruturada e responsável.
+    </p>
+
     <p class="muted">
-      O Lumen Jurídico é um app local desenvolvido para auxiliar a leitura e compreensão
-      de decisões judiciais com mais clareza.
-      Ele <strong>não</strong> decide nada por você: apenas organiza o texto em blocos úteis.
+      O <strong>Lumen Jurídico</strong> é um aplicativo local criado para
+      auxiliar estudantes e profissionais do Direito na
+      <strong>compreensão técnica de decisões judiciais</strong>,
+      sem substituir o raciocínio jurídico humano.
     </p>
   </section>
 
   <section class="card">
-    <h2>O que este app faz</h2>
+    <h2>O que o Lumen faz</h2>
     <ul>
-      <li>Organiza uma decisão em: pergunta jurídica, tese, fundamentos e aplicação prática.</li>
-      <li>Identifica citações legais comuns (artigos, leis e siglas como CPC, CPP, CP e CLT).</li>
-      <li>Disponibiliza uma biblioteca com links oficiais da legislação federal.</li>
+      <li>
+        Identifica o <strong>tema principal</strong> da decisão,
+        destacando o assunto jurídico central tratado no texto.
+      </li>
+      <li>
+        Organiza automaticamente <strong>normas e artigos citados</strong>,
+        indicando sua origem (Código Penal, CPP, CPC, Constituição etc.).
+      </li>
+      <li>
+        Formula uma <strong>pergunta jurídica orientadora</strong>,
+        útil para estudo, pesquisa e revisão.
+      </li>
+      <li>
+        Sugere <strong>pesquisas prontas em jurisprudência</strong>,
+        com palavras-chave e link direto para os tribunais.
+      </li>
+      <li>
+        Apresenta um <strong>checklist prático</strong>,
+        voltado para estudo, prova e leitura crítica da decisão.
+      </li>
+      <li>
+        Traduz <strong>termos jurídicos relevantes</strong>
+        para uma linguagem mais acessível, sem perder precisão técnica.
+      </li>
     </ul>
+  </section>
 
-    <h2>O que ele não faz (por enquanto)</h2>
+  <section class="card">
+    <h2>O que o Lumen não faz</h2>
     <ul>
-      <li>Não realiza busca automática de processos.</li>
-      <li>Não substitui a análise jurídica humana: sempre revise o conteúdo.</li>
-      <li>Não utiliza IA externa: o processamento é local (maior privacidade).</li>
+      <li>
+        Não emite juízo de valor nem “decide” casos:
+        o conteúdo sempre deve ser analisado criticamente pelo usuário.
+      </li>
+      <li>
+        Não substitui a leitura integral da decisão,
+        especialmente em peças, provas ou prática profissional.
+      </li>
+      <li>
+        Não realiza buscas automáticas em bancos de processos
+        nem consulta bases fechadas de tribunais.
+      </li>
     </ul>
+  </section>
+
+  <section class="card">
+    <h2>Privacidade e funcionamento</h2>
+    <p class="muted">
+      O Lumen Jurídico funciona com <strong>processamento local</strong>.
+      Os textos inseridos não são enviados para serviços externos
+      nem utilizados para treinamento de modelos de IA.
+    </p>
+    <p class="muted" style="margin-top:8px;">
+      A proposta do app é ser uma <strong>ferramenta de apoio</strong>,
+      ética, transparente e compatível com o estudo e a prática jurídica.
+    </p>
   </section>
 {% endblock %}
