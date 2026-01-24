@@ -27,39 +27,6 @@
     {% endif %}
   </section>
 
-  {# ✅ Confiabilidade (explicado) #}
-  {% if out.confianca %}
-    <section class="card" style="margin-top:14px;">
-      <div class="row" style="justify-content:space-between; align-items:center; margin-top:0;">
-        <div>
-          <h2 style="margin:0;">Confiabilidade</h2>
-          <p class="muted" style="margin-top:6px;">
-            Indicador automático de <strong>completude do texto</strong> (fatos, pedido, resultado e referências).
-            Ajuda a saber se a síntese ficou precisa. <strong>Não</strong> avalia “quem tem razão”.
-          </p>
-        </div>
-        <span class="pill">
-          {{ out.confianca.nivel|upper }} • {{ out.confianca.score }}%
-        </span>
-      </div>
-
-      <div style="margin-top:10px; height:10px; border-radius:999px; background:#eef2ff; overflow:hidden; border:1px solid var(--border);">
-        <div style="height:100%; width:{{ out.confianca.score }}%; background:var(--accent);"></div>
-      </div>
-
-      {% if out.confianca.motivos and out.confianca.motivos|length > 0 %}
-        <details style="margin-top:10px;">
-          <summary>Como melhorar</summary>
-          <ul style="margin-top:10px;">
-            {% for m in out.confianca.motivos %}
-              <li class="muted">{{ m }}</li>
-            {% endfor %}
-          </ul>
-        </details>
-      {% endif %}
-    </section>
-  {% endif %}
-
   {# ✅ PRINCIPAL TEMA DO TEXTO #}
   <section class="card" style="margin-top:14px;">
     <h2>Principal tema do texto</h2>
@@ -74,7 +41,7 @@
     {% endif %}
   </section>
 
-  {# ✅ ATALHOS RECOMENDADOS (mantém) #}
+  {# ✅ ATALHOS RECOMENDADOS #}
   {% if out.sugestoes and out.sugestoes|length > 0 %}
     <section class="card" style="margin-top:14px;">
       <h2>Atalhos recomendados</h2>
@@ -112,7 +79,7 @@
     </p>
   </section>
 
-  {# ✅ PRA PESQUISAR (mantém + inclui palavras-chave) #}
+  {# ✅ PRA PESQUISAR #}
   <section class="card" style="margin-top:14px;">
     <h2>Pra pesquisar</h2>
 
@@ -156,7 +123,7 @@
     {% endif %}
   </section>
 
-  {# ✅ CHECKLIST PRÁTICO PARA ESTUDO E PROVA (melhorado) #}
+  {# ✅ CHECKLIST PRÁTICO PARA ESTUDO E PROVA #}
   <section class="card" style="margin-top:14px;">
     <h2>Checklist prático (estudo e prova)</h2>
     <p class="muted" style="margin-top:6px;">
@@ -174,7 +141,7 @@
     {% endif %}
   </section>
 
-  {# ✅ TERMOS JURÍDICOS IMPORTANTES E SUA “TRADUÇÃO” #}
+  {# ✅ TERMOS JURÍDICOS IMPORTANTES E TRADUÇÃO #}
   <section class="card" style="margin-top:14px;">
     <h2>Termos jurídicos importantes (tradução)</h2>
     <p class="muted" style="margin-top:6px;">
@@ -242,8 +209,6 @@ ${searches.length ? searches.map((q, i) => (i+1) + ") " + q).join("\\n\\n") : "(
       const checklist = {{ (out.checklist or [])|tojson }};
       const termos = {{ (out.termos_importantes or [])|tojson }};
 
-      const conf = {{ (out.confianca or {})|tojson }};
-
       const texto =
 `LUMEN JURÍDICO — RELATÓRIO
 Data/hora: {{ now.strftime("%d/%m/%Y %H:%M") }}
@@ -253,9 +218,6 @@ ${tema || "(não identificado)"}
 
 SÍNTESE
 ${resumo || "(não identificada)"}
-
-CONFIABILIDADE (completude do texto)
-Nível: ${(conf && conf.nivel) ? conf.nivel.toUpperCase() : "—"} • Score: ${(conf && conf.score) ? conf.score : "—"}%
 
 PRA PESQUISAR
 Pergunta: ${perguntaObj || pergunta}
