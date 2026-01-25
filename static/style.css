@@ -30,9 +30,7 @@
    RESET / BASE
    ========================= */
 
-*{
-  box-sizing:border-box;
-}
+*{ box-sizing:border-box; }
 
 body{
   margin:0;
@@ -42,17 +40,11 @@ body{
   line-height:1.55;
 }
 
-a{
-  color:inherit;
-}
+a{ color:inherit; }
 
-p{
-  margin:0;
-}
+p{ margin:0; }
 
-.muted{
-  color:var(--muted);
-}
+.muted{ color:var(--muted); }
 
 /* =========================
    LAYOUT
@@ -93,16 +85,25 @@ p{
   gap:14px;
 }
 
-/* 🔑 ÍCONE DA LÂMPADA (SEM FUNDO) */
+/* ✅ LÂMPADA MAIOR + FUNDO SUAVE (premium) */
 .brand-icon{
-  display:flex;
+  width:42px;
+  height:42px;
+  display:inline-flex;
   align-items:center;
   justify-content:center;
   color:var(--accent);
+  background:#eef2ff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+  transform:translateY(1px);
 }
 
 .brand-icon svg{
   display:block;
+  width:26px;
+  height:26px;
 }
 
 .brand-name{
@@ -218,9 +219,7 @@ p{
 }
 
 @media(min-width:860px){
-  .grid2{
-    grid-template-columns:1fr 1fr;
-  }
+  .grid2{ grid-template-columns:1fr 1fr; }
 }
 
 /* =========================
@@ -316,6 +315,61 @@ input[type="file"]{
 }
 
 /* =========================
+   LISTAS / LINKS
+   ========================= */
+
+ul{
+  padding-left:18px;
+  margin:8px 0 0;
+}
+
+.links{
+  list-style:none;
+  padding:0;
+  margin:10px 0 0;
+}
+
+.links li{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding:8px 0;
+  border-bottom:1px dashed var(--border);
+}
+
+.links a{
+  text-decoration:none;
+  color:var(--accent);
+}
+
+.links a:hover{
+  text-decoration:underline;
+}
+
+.pill{
+  font-size:12px;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:#f9fafb;
+}
+
+/* =========================
+   BLOCOS DE TEXTO
+   ========================= */
+
+.pre{
+  background:#f9fafb;
+  border:1px dashed var(--border);
+  border-radius:10px;
+  padding:14px;
+  white-space:pre-wrap;
+  font-size:13px;
+  line-height:1.6;
+}
+
+/* =========================
    FLASH MESSAGES
    ========================= */
 
@@ -356,4 +410,3 @@ input[type="file"]{
   font-size:13px;
   color:var(--muted);
 }
-
