@@ -4,3 +4,4 @@ python-dotenv
 pypdf
 python-docx
 Flask-SQLAlchemy
+gunicorn
