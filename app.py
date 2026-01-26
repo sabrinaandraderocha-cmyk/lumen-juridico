@@ -9,7 +9,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
-# Bibliotecas de leitura (Certifique-se de que estão no requirements.txt)
+# Bibliotecas de leitura de arquivos
 from pypdf import PdfReader
 from docx import Document as DocxDocument
 
@@ -18,29 +18,29 @@ from flask_sqlalchemy import SQLAlchemy
 
 load_dotenv()
 
-# =========================================================
-# CONFIGURAÇÃO DO AMBIENTE
-# =========================================================
+# =========================
+# Configuração do App
+# =========================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
 UPLOAD_DIR = os.path.join(INSTANCE_DIR, "uploads")
 DB_PATH = os.path.join(INSTANCE_DIR, "lumen.db")
 
-# Garante a existência das pastas no servidor
+# Garante que as pastas existam para o Render não dar erro de permissão
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(INSTANCE_DIR, exist_ok=True)
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "lumen-juridico-key-2026")
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # Limite de 16MB
+app.secret_key = os.getenv("SECRET_KEY", "dev-secret-lumen-2026")
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# =========================================================
-# MODELO DE DADOS (HISTÓRICO)
-# =========================================================
+# =========================
+# Modelo do Banco de Dados
+# =========================
 class Analise(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
@@ -51,9 +51,11 @@ class Analise(db.Model):
 with app.app_context():
     db.create_all()
 
-# =========================================================
-# BIBLIOTECA JURÍDICA (TODOS OS LINKS DO SEU PRINT)
-# =========================================================
+# =========================
+# Constantes e Biblioteca
+# =========================
+GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
+
 LIBRARY_LINKS = [
     {"categoria": "CONSTITUIÇÃO", "titulo": "Constituição Federal", "url": "http://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"},
     {"categoria": "CÓDIGO", "titulo": "Código Civil", "url": "http://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm"},
@@ -68,16 +70,16 @@ LIBRARY_LINKS = [
 ]
 
 GLOSSARY_DICT = {
-    "acórdão": "Decisão proferida por um colegiado de juízes (tribunal).",
-    "prescrição": "Perda do prazo para exercer o direito de ação.",
+    "acórdão": "Decisão final proferida por um tribunal (grupo de juízes).",
+    "prescrição": "Perda do direito de punir ou cobrar algo pelo passar do tempo.",
     "ementa": "Resumo oficial de uma decisão judicial.",
     "tempestivo": "Ato realizado dentro do prazo legal.",
-    "preclusão": "Perda do direito de se manifestar no processo por decurso de prazo."
+    "preclusão": "Perda do direito de agir no processo por perda de prazo.",
 }
 
-# =========================================================
-# LÓGICA DE PROCESSAMENTO (IA & ARQUIVOS)
-# =========================================================
+# =========================
+# Funções de Inteligência
+# =========================
 
 def ler_arquivo(caminho):
     ext = os.path.splitext(caminho)[1].lower()
@@ -90,80 +92,51 @@ def ler_arquivo(caminho):
         elif ext == ".docx":
             doc = DocxDocument(caminho)
             conteudo = "\n".join([p.text for p in doc.paragraphs])
-    except Exception as e:
-        print(f"Erro na leitura: {e}")
+    except: pass
     return conteudo
 
-def identificar_norma(texto, posicao):
-    amostra = texto[max(0, posicao-100):posicao+100].lower()
-    regras = {
-        "penal": "Código Penal", "civil": "Código Civil", "cpc": "CPC",
-        "trabalh": "CLT", "consumidor": "CDC", "constitui": "CF/88"
-    }
-    for chave, nome in regras.items():
-        if chave in amostra: return nome
-    return "Legislação não especificada"
-
-def processar_texto(texto):
-    # Detectar Artigos
-    artigos = re.findall(r"(?:art\.?|artigo)\s*(\d+)", texto, re.I)
-    fundamentos = []
-    for num in artigos[:10]: # Limita aos 10 primeiros
-        norma = identificar_norma(texto, texto.find(num))
-        fundamentos.append(f"Art. {num} do {norma}")
-
-    # Extrair palavras-chave (frequência)
-    palavras = re.findall(r'\w{6,}', texto.lower())
-    top_words = [w for w, _ in Counter(palavras).most_common(5)]
-
-    # Glossário Dinâmico
-    termos_encontrados = []
-    for termo, desc in GLOSSARY_DICT.items():
-        if termo in texto.lower():
-            termos_encontrados.append({"termo": termo.title(), "definicao": desc})
+def build_output(text: str):
+    keywords = [w for w, _ in Counter(re.findall(r'\w{6,}', text.lower())).most_common(5)]
+    found_glossary = []
+    for term, definition in GLOSSARY_DICT.items():
+        if term in text.lower():
+            found_glossary.append({"termo": term.title(), "definicao": definition})
 
     return {
-        "titulo": f"Análise: {top_words[0].title() if top_words else 'Documento'}",
-        "resumo": texto[:800] + "...",
-        "normas": list(set(fundamentos)),
-        "keywords": top_words,
-        "glossario": termos_encontrados
+        "tema_principal": f"Análise de {top_words[0].title() if keywords else 'Documento'}",
+        "resumo": text[:800] + "...",
+        "keywords": keywords,
+        "glossario": found_glossary or [{"termo": "Processo", "definicao": "Atos judiciais"}]
     }
 
-# =========================================================
-# ROTAS DO SISTEMA
-# =========================================================
+# =========================
+# Rotas (Corrigidas)
+# =========================
 
 @app.route("/")
 def home():
-    recentes = Analise.query.order_by(Analise.id.desc()).limit(3).all()
+    recentes = Analise.query.order_by(Analise.id.desc()).limit(5).all()
     return render_template("index.html", historico=recentes)
 
 @app.route("/analisar", methods=["POST"])
 def analisar():
-    texto_input = request.form.get("texto", "").strip()
+    texto = request.form.get("texto", "").strip()
     arquivo = request.files.get("arquivo")
     
-    texto_final = texto_input
     if arquivo and arquivo.filename:
         filename = secure_filename(arquivo.filename)
         path = os.path.join(UPLOAD_DIR, filename)
         arquivo.save(path)
-        texto_final += "\n" + ler_arquivo(path)
-        os.remove(path) # Limpeza
+        texto += "\n" + ler_arquivo(path)
+        os.remove(path)
 
-    if not texto_final or len(texto_final) < 20:
-        flash("Por favor, insira um texto mais longo ou um arquivo válido.")
-        return redirect(url_for("home"))
+    if not texto or len(texto) < 10:
+        flash("Texto insuficiente."); return redirect(url_for("home"))
 
-    resultado = processar_texto(texto_final)
-    
-    # Salvar no Banco
-    nova_analise = Analise(titulo_resumo=resultado["titulo"], texto_original=texto_final)
-    db.session.add(nova_analise)
-    db.session.commit()
-
-    return render_template("resultado.html", out=resultado, texto=texto_final, id=nova_analise.id)
+    out = build_output(texto)
+    nova = Analise(titulo_resumo=out["tema_principal"], texto_original=texto)
+    db.session.add(nova); db.session.commit()
+    return render_template("resultado.html", out=out, texto=texto, now=datetime.now(), analise_id=nova.id)
 
 @app.route("/biblioteca")
 def biblioteca():
@@ -172,19 +145,23 @@ def biblioteca():
 @app.route("/historico")
 def historico():
     page = request.args.get('page', 1, type=int)
-    dados = Analise.query.order_by(Analise.id.desc()).paginate(page=page, per_page=10)
-    return render_template("historico.html", paginacao=dados)
+    analises = Analise.query.order_by(Analise.id.desc()).paginate(page=page, per_page=10)
+    return render_template("historico.html", paginacao=analises)
+
+@app.route("/sobre")
+def sobre(): return render_template("sobre.html")
+
+# ESTA ROTA ESTAVA FALTANDO E CAUSAVA O ERRO NO RENDER
+@app.route("/glossario")
+def glossario():
+    return redirect(GLOSSARY_URL)
 
 @app.route("/excluir/<int:id>")
 def excluir(id):
-    item = Analise.query.get_or_404(id)
-    db.session.delete(item)
-    db.session.commit()
+    analise = Analise.query.get_or_404(id)
+    db.session.delete(analise); db.session.commit()
     return redirect(url_for("historico"))
 
-@app.route("/sobre")
-def sobre():
-    return render_template("sobre.html")
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
+    port = int(os.getenv("PORT", "10000"))
+    app.run(host="0.0.0.0", port=port)
