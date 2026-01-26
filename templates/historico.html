@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-slate-800 mb-6">Histórico de Análises</h1>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {% for item in paginacao.items %}
+        <div class="p-5 border-b last:border-0 hover:bg-slate-50 transition flex justify-between items-center group">
+            <div>
+                <a href="{{ url_for('resultado', id=item.id) }}" class="font-semibold text-lg text-slate-800 hover:text-blue-700">
+                    {{ item.titulo_resumo }}
+                </a>
+                <p class="text-sm text-slate-500 mt-1">
+                    {{ item.data_criacao.strftime('%d/%m/%Y às %H:%M') }}
+                </p>
+            </div>
+            <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition">
+                <a href="{{ url_for('resultado', id=item.id) }}" class="text-blue-600 hover:underline text-sm font-medium">Ver</a>
+                <a href="{{ url_for('excluir', id=item.id) }}" class="text-red-600 hover:underline text-sm font-medium" onclick="return confirm('Apagar este registro?')">Excluir</a>
+            </div>
+        </div>
+        {% else %}
+        <div class="p-8 text-center text-slate-500">Nenhuma análise salva ainda.</div>
+        {% endfor %}
+    </div>
+
+    <div class="mt-6 flex justify-center gap-2">
+        {% if paginacao.has_prev %}
+            <a href="{{ url_for('historico', page=paginacao.prev_num) }}" class="px-4 py-2 bg-white border rounded hover:bg-slate-50">Anterior</a>
+        {% endif %}
+        {% if paginacao.has_next %}
+            <a href="{{ url_for('historico', page=paginacao.next_num) }}" class="px-4 py-2 bg-white border rounded hover:bg-slate-50">Próxima</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
