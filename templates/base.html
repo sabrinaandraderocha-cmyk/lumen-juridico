@@ -16,7 +16,6 @@
   <header class="topbar">
     <div class="container topbar-inner">
       <div class="brand">
-        <!-- ✅ ÍCONE LÂMPADA (SEM QUADRADO AZUL) -->
         <span class="brand-icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             <path d="M9 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -34,6 +33,7 @@
 
       <nav class="nav">
         <a href="{{ url_for('home') }}">Analisar</a>
+        <a href="{{ url_for('historico') }}">Histórico</a>
         <a href="{{ url_for('biblioteca') }}">Biblioteca</a>
         <a href="{{ url_for('sobre') }}">Sobre</a>
       </nav>
@@ -44,7 +44,9 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, msg in messages %}
-          <div class="flash {{ category }}">{{ msg }}</div>
+          <div class="flash {{ category }}" style="padding: 15px; margin-bottom: 20px; border-radius: 8px; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca;">
+            {{ msg }}
+          </div>
         {% endfor %}
       {% endif %}
     {% endwith %}
@@ -52,12 +54,12 @@
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="footer">
-    <div class="container footer-inner">
-      <div>© Lumen Jurídico</div>
+  <footer class="footer" style="margin-top: 50px; padding: 20px 0; border-top: 1px solid #e2e8f0; color: #64748b;">
+    <div class="container footer-inner" style="display: flex; justify-content: space-between; align-items: center;">
+      <div>© 2026 Lumen Jurídico</div>
       <div>
-        <a href="{{ url_for('glossario') }}" style="color:var(--muted); text-decoration:none;">
-          Glossário STF
+        <a href="https://portal.stf.jus.br/jurisprudencia/glossario.asp" target="_blank" style="color:#64748b; text-decoration:none; font-size: 0.9rem;">
+          Glossário Jurídico (STF)
         </a>
       </div>
     </div>
