@@ -45,9 +45,9 @@ ALLOWED_EXTS = {".pdf", ".docx", ".txt"}
 class Analise(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
-    titulo_resumo = db.Column(db.String(255))  # Ex: "Habeas Corpus - Tráfico"
-    texto_original = db.Column(db.Text)        # O texto completo extraído
-    tipo_peca = db.Column(db.String(100))      # Ex: Sentença
+    titulo_resumo = db.Column(db.String(255))
+    texto_original = db.Column(db.Text)
+    tipo_peca = db.Column(db.String(100))
     
     def __repr__(self):
         return f'<Analise {self.id}>'
@@ -57,25 +57,34 @@ with app.app_context():
     db.create_all()
 
 # =========================
-# Glossário e Links (Mantidos do Original)
+# Glossário e Biblioteca (ATUALIZADA COM CURSOS)
 # =========================
 GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
 
 LIBRARY_LINKS = [
-    {"key": "CF_PDF", "titulo": "Constituição Federal (PDF – DOU)", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/DOUconstituicao88.pdf", "tipo": "Constituição"},
-    {"key": "CF_HTML", "titulo": "Constituição Federal (texto compilado)", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", "tipo": "Constituição"},
+    # --- Legislação Fundamental ---
+    {"key": "CF_HTML", "titulo": "Constituição Federal (Compilado)", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", "tipo": "Constituição"},
     {"key": "CC", "titulo": "Código Civil", "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm", "tipo": "Código"},
     {"key": "CPC", "titulo": "Código de Processo Civil (CPC)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm", "tipo": "Código"},
     {"key": "CP", "titulo": "Código Penal (CP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm", "tipo": "Código"},
     {"key": "CPP", "titulo": "Código de Processo Penal (CPP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm", "tipo": "Código"},
-    {"key": "CLT", "titulo": "Consolidação das Leis do Trabalho (CLT)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm", "tipo": "Código • Trabalho"},
-    {"key": "CDC", "titulo": "Código de Defesa do Consumidor (CDC)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm", "tipo": "Código • Consumidor"},
-    {"key": "CTN", "titulo": "Código Tributário Nacional (CTN)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm", "tipo": "Código • Tributário"},
-    {"key": "LIC", "titulo": "Lei de Licitações (Lei 14.133/2021)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm", "tipo": "Lei Administrativa"},
-    {"key": "LIA", "titulo": "Lei de Improbidade (Lei 8.429/1992)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm", "tipo": "Lei Administrativa"},
-    {"key": "ECA", "titulo": "Estatuto da Criança e Adolescente (ECA)", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm", "tipo": "Estatuto"},
-    {"key": "MPENHA", "titulo": "Lei Maria da Penha (Lei 11.340/2006)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm", "tipo": "Lei Especial"},
-    {"key": "STF_GLOSS", "titulo": "Glossário STF", "url": GLOSSARY_URL, "tipo": "Glossário"},
+    {"key": "CLT", "titulo": "Consolidação das Leis do Trabalho (CLT)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm", "tipo": "Trabalhista"},
+    {"key": "CDC", "titulo": "Código de Defesa do Consumidor", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm", "tipo": "Consumidor"},
+    
+    # --- Cursos Gratuitos (NOVO) ---
+    {"key": "CURSO_STF", "titulo": "Cursos EAD – Supremo Tribunal Federal", "url": "https://ead.stf.jus.br/course/index.php?categoryid=3", "tipo": "🎓 Curso Gratuito"},
+    {"key": "CURSO_ESA", "titulo": "ESA OAB – Cursos Gratuitos", "url": "https://esa.oab.org.br/home/ver-cursos?filter_categories_id%5B%5D=24", "tipo": "🎓 Curso Gratuito"},
+    {"key": "CURSO_GOV", "titulo": "Escola Virtual Gov (EV.G) – Direito", "url": "https://www.escolavirtual.gov.br/catalogo", "tipo": "🎓 Curso Gratuito"},
+
+    # --- Legislação Específica ---
+    {"key": "CTN", "titulo": "Código Tributário Nacional", "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm", "tipo": "Tributário"},
+    {"key": "LIC", "titulo": "Lei de Licitações (14.133/21)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm", "tipo": "Administrativo"},
+    {"key": "LIA", "titulo": "Lei de Improbidade Administrativa", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm", "tipo": "Administrativo"},
+    {"key": "ECA", "titulo": "Estatuto da Criança e Adolescente", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm", "tipo": "Estatuto"},
+    {"key": "MPENHA", "titulo": "Lei Maria da Penha", "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm", "tipo": "Penal Especial"},
+    
+    # --- Ferramentas ---
+    {"key": "STF_GLOSS", "titulo": "Glossário Jurídico STF", "url": GLOSSARY_URL, "tipo": "Ferramenta"},
 ]
 
 STOPWORDS_PT = {
@@ -84,7 +93,7 @@ STOPWORDS_PT = {
     "menos","já","não","sim","ser","foi","é","são","era","sendo","ter","tem","têm","haver","há",
     "art","artigo","lei","decreto","resolução","acórdão","relator","relatora","turma","câmara",
     "tribunal","stj","stf","tj","trf","ministro","ministra","voto","decisão","processo","recurso",
-    "ementa","embargos","embargo","autos","vistos","juiz","juiza","excelencia"
+    "ementa","embargos","embargo","autos","vistos","juiz","juiza","excelencia", "vossa", "senhoria"
 }
 
 TERM_TRANSLATIONS = {
@@ -100,10 +109,14 @@ TERM_TRANSLATIONS = {
     "ônus da prova": "quem tem o dever de provar determinado fato.",
     "tutela de urgência": "decisão rápida e provisória para evitar dano imediato.",
     "prisão preventiva": "prisão antes da sentença para proteger o processo/sociedade.",
+    "trânsito em julgado": "quando não cabe mais recurso da decisão.",
+    "in dubio pro reo": "na dúvida, decide-se a favor do réu.",
+    "ex tunc": "efeito retroativo (vale desde o início).",
+    "ex nunc": "efeito não retroativo (vale daqui para frente)."
 }
 
 # =========================
-# Funções de Texto (NLP e Regex Originais)
+# Funções de Texto (NLP e Regex)
 # =========================
 def normalize(text: str) -> str:
     text = (text or "").strip()
@@ -140,10 +153,10 @@ def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
     return block.strip()[:max_chars].strip()
 
 def pick_keywords(text: str, k=8):
-    tokens = re.findall(r"[A-Za-zÀ-ÿ]{3,}", (text or "").lower())
-    tokens = [t for t in tokens if t not in STOPWORDS_PT]
-    if not tokens:
-        return []
+    # Limpa pontuação para contar palavras melhor
+    clean_text = re.sub(r'[^\w\s]', '', text.lower())
+    tokens = [t for t in clean_text.split() if t not in STOPWORDS_PT and len(t) > 3 and not t.isdigit()]
+    if not tokens: return []
     counts = Counter(tokens)
     return [w for w, _ in counts.most_common(k)]
 
@@ -155,7 +168,8 @@ def extract_legal_citations(text: str, limit=14):
         r"Súmula\s*(?:Vinculante)?\s*n[º°]?\s*\d+",
         r"Constituição\s+Federal",
         r"Código\s+(?:Civil|Penal|Processo\s+Civil|Processo\s+Penal|Defesa\s+do\s+Consumidor|Tributário)",
-        r"CF/88", r"CPC", r"CPP", r"CP", r"CLT", r"CDC", r"CTN"
+        r"CF/88", r"CPC", r"CPP", r"CP", r"CLT", r"CDC", r"CTN",
+        r"Decreto\s+n[º°]?\s*[\d\.]+"
     ]
     citations = []
     for pat in patterns:
@@ -165,6 +179,8 @@ def extract_legal_citations(text: str, limit=14):
     unique = []
     for c in citations:
         clean = normalize(c)
+        # Limpeza extra para "Lei n 123" ficar bonito
+        clean = re.sub(r"\s+", " ", clean)
         if clean.lower() not in seen:
             seen.add(clean.lower())
             unique.append(clean)
@@ -218,43 +234,89 @@ def extract_terms_translation(text: str, max_items: int = 10) -> list[dict]:
 def build_search_queries(pergunta: str, tese: str, keywords: list[str], max_items: int = 4) -> list[str]:
     kws = [k for k in (keywords or []) if k and len(k) >= 4][:3]
     out = []
+    
+    # Query 1: Palavras-chave
     if kws: out.append(" AND ".join([f'"{k}"' for k in kws]))
-    if tese: out.append(tese[:100])
+    
+    # Query 2: Pergunta + Tribunal (se detectado)
+    if "stj" in tese.lower():
+        out.append(f"site:stj.jus.br {kws[0] if kws else ''}")
+    elif "stf" in tese.lower():
+        out.append(f"site:stf.jus.br {kws[0] if kws else ''}")
+        
     return out[:max_items]
 
 def build_action_checklist(text: str) -> list[str]:
     low = (text or "").lower()
     items = []
-    if "prisão" in low or "hc" in low:
-        items.extend(["Verificar fundamentação concreta", "Checar contemporaneidade", "Analisar excesso de prazo"])
-    if "dano moral" in low:
-        items.extend(["Verificar nexo causal", "Analisar critérios do quantum", "Checar excludentes"])
+    
+    # Checklist Dinâmico
+    if "prisão" in low or "hc" in low or "liberdade" in low:
+        items.extend([
+            "Verificar se há fundamentação concreta (não genérica).",
+            "Checar contemporaneidade dos fatos (os fatos são recentes?).",
+            "Analisar excesso de prazo na prisão."
+        ])
+    if "dano moral" in low or "indeniza" in low:
+        items.extend([
+            "Verificar nexo causal (ligação entre conduta e dano).",
+            "Analisar critérios do 'quantum' (valor) indenizatório.",
+            "Checar excludentes de responsabilidade."
+        ])
+    if "recurso" in low or "apelação" in low or "agravo" in low:
+        items.extend([
+            "Verificar tempestividade (prazo do recurso).",
+            "Checar preparo (pagamento de custas).",
+            "Conferir prequestionamento (se matéria foi debatida antes)."
+        ])
+        
+    # Itens Padrão se não achar nada específico
     if not items:
-        items = ["Identificar controvérsia", "Listar fatos relevantes", "Verificar dispositivo", "Checar prazos"]
+        items = [
+            "Identificar a controvérsia central.",
+            "Listar fatos relevantes cronologicamente.",
+            "Verificar o dispositivo (conclusão) final.",
+            "Checar prazos processuais a partir da publicação."
+        ]
     return items
 
 def suggest_library_links(text: str, max_items: int = 7):
     t = (text or "").lower()
     out = []
+    
+    # Prioriza links que batem com o texto
     for link in LIBRARY_LINKS:
-        # Se o titulo ou a chave aparecer no texto, sugere (lógica simples)
         keywords = link['titulo'].split()
-        if any(k.lower() in t for k in keywords if len(k) > 3):
+        # Se 2 palavras do titulo baterem, sugere
+        matches = sum(1 for k in keywords if len(k) > 3 and k.lower() in t)
+        if matches >= 1:
             out.append(link)
     
     # Se não achou nada específico, manda os gerais
     if not out:
         out = [l for l in LIBRARY_LINKS if l['key'] in ['CF_HTML', 'CPC', 'STF_GLOSS']]
     
-    return out[:max_items]
+    # Adiciona sempre um curso se for pertinente (Ex: se falar de OAB)
+    if "oab" in t or "exame" in t:
+        out.append([l for l in LIBRARY_LINKS if l['key'] == 'CURSO_ESA'][0])
+    
+    # Remove duplicatas preservando ordem
+    seen = set()
+    unique_out = []
+    for x in out:
+        if x['key'] not in seen:
+            unique_out.append(x)
+            seen.add(x['key'])
+            
+    return unique_out[:max_items]
 
 # =========================
-# Lógica de Construção do Resultado
+# Lógica Principal
 # =========================
 def build_output(text: str):
     text = normalize(text)
 
-    # Tenta extrair a ementa
+    # Tenta extrair a ementa (bloco resumo no topo)
     ementa = extract_block(text, [r"\bementa\b"], [r"\bac[oó]rd[aã]o\b", r"\brelat[oó]rio\b"], 1700) or text[:900]
     
     # Identifica Palavras-chave
@@ -263,27 +325,25 @@ def build_output(text: str):
 
     # Identifica Pergunta e Tese
     pergunta = pick_best_question(text, base_for_keywords)
-    tese = extract_block(text, [r"\btese\b", r"\bconclus[aã]o\b", r"\bdispositivo\b"], [r"\bfundamenta[cç][aã]o\b"], 1600)
-    if not tese: tese = ementa[:500]
-
+    
     # Extrações Jurídicas
     fundamentos_normas = extract_legal_citations(text, limit=14)
     fundamentos_juris = extract_jurisprudencia_refs(text, limit=12)
     
-    # Resumo simples
+    # Resumo inteligente
     resumo = ementa[:600] + ("..." if len(ementa)>600 else "")
 
     # Auxiliares
-    pesquisas = build_search_queries(pergunta, tese, keywords)
+    pesquisas = build_search_queries(pergunta, ementa, keywords)
     checklist = build_action_checklist(text)
     sugestoes = suggest_library_links(text)
     termos_importantes = extract_terms_translation(text)
     
-    # Define o tema principal (Título)
-    tema_principal = f"Análise: {', '.join(keywords[:3])}" if keywords else "Análise Jurídica"
+    # Título do Tema
+    tema_principal = f"Análise: {', '.join(keywords[:3]).title()}" if keywords else "Análise Jurídica"
 
     return {
-        "tema_principal": tema_principal.title(),
+        "tema_principal": tema_principal,
         "pergunta": pergunta,
         "fundamentos_normas": fundamentos_normas,
         "fundamentos_juris": fundamentos_juris,
@@ -335,7 +395,7 @@ def get_text_from_upload(file):
 # =========================
 @app.route("/")
 def home():
-    # Pega histórico do banco
+    # Pega histórico do banco (últimos 5)
     historico = Analise.query.order_by(Analise.data_criacao.desc()).limit(5).all()
     return render_template("index.html", historico=historico)
 
@@ -355,14 +415,14 @@ def analisar():
         flash("O documento está vazio ou muito curto.", "error")
         return redirect(url_for("home"))
 
-    # Processa (Usa a lógica original + melhorias)
+    # Processa
     out = build_output(texto)
     
     # Salva no Banco de Dados
     nova = Analise(
         titulo_resumo=out["tema_principal"],
         texto_original=texto,
-        tipo_peca="Documento Jurídico" # Poderia melhorar com IA
+        tipo_peca="Documento Jurídico"
     )
     db.session.add(nova)
     db.session.commit()
@@ -372,13 +432,11 @@ def analisar():
 @app.route("/resultado/<int:id>")
 def resultado(id):
     analise = Analise.query.get_or_404(id)
-    # Refaz o processamento para exibir (evita salvar JSON complexo no SQLite simples)
     out = build_output(analise.texto_original)
     return render_template("resultado.html", out=out, texto=analise.texto_original, now=datetime.now(), analise_id=analise.id)
 
 @app.route("/historico")
 def historico():
-    # Paginação simples
     page = request.args.get('page', 1, type=int)
     analises = Analise.query.order_by(Analise.data_criacao.desc()).paginate(page=page, per_page=10)
     return render_template("historico.html", paginacao=analises)
@@ -403,7 +461,7 @@ def glossario():
 def sobre():
     return render_template("sobre.html")
 
-# Errors
+# Erros
 @app.errorhandler(404)
 def page_not_found(e): return render_template('404.html'), 404
 @app.errorhandler(500)
