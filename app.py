@@ -52,17 +52,15 @@ class Analise(db.Model):
     def __repr__(self):
         return f'<Analise {self.id}>'
 
-# Cria as tabelas ao iniciar
 with app.app_context():
     db.create_all()
 
 # =========================
-# Glossário e Biblioteca (ATUALIZADA COM CURSOS)
+# Dados Estáticos (Links e Stopwords)
 # =========================
 GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
 
 LIBRARY_LINKS = [
-    # --- Legislação Fundamental ---
     {"key": "CF_HTML", "titulo": "Constituição Federal (Compilado)", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", "tipo": "Constituição"},
     {"key": "CC", "titulo": "Código Civil", "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm", "tipo": "Código"},
     {"key": "CPC", "titulo": "Código de Processo Civil (CPC)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm", "tipo": "Código"},
@@ -70,21 +68,8 @@ LIBRARY_LINKS = [
     {"key": "CPP", "titulo": "Código de Processo Penal (CPP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm", "tipo": "Código"},
     {"key": "CLT", "titulo": "Consolidação das Leis do Trabalho (CLT)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm", "tipo": "Trabalhista"},
     {"key": "CDC", "titulo": "Código de Defesa do Consumidor", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm", "tipo": "Consumidor"},
-    
-    # --- Cursos Gratuitos (NOVO) ---
     {"key": "CURSO_STF", "titulo": "Cursos EAD – Supremo Tribunal Federal", "url": "https://ead.stf.jus.br/course/index.php?categoryid=3", "tipo": "🎓 Curso Gratuito"},
     {"key": "CURSO_ESA", "titulo": "ESA OAB – Cursos Gratuitos", "url": "https://esa.oab.org.br/home/ver-cursos?filter_categories_id%5B%5D=24", "tipo": "🎓 Curso Gratuito"},
-    {"key": "CURSO_GOV", "titulo": "Escola Virtual Gov (EV.G) – Direito", "url": "https://www.escolavirtual.gov.br/catalogo", "tipo": "🎓 Curso Gratuito"},
-
-    # --- Legislação Específica ---
-    {"key": "CTN", "titulo": "Código Tributário Nacional", "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm", "tipo": "Tributário"},
-    {"key": "LIC", "titulo": "Lei de Licitações (14.133/21)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm", "tipo": "Administrativo"},
-    {"key": "LIA", "titulo": "Lei de Improbidade Administrativa", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm", "tipo": "Administrativo"},
-    {"key": "ECA", "titulo": "Estatuto da Criança e Adolescente", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm", "tipo": "Estatuto"},
-    {"key": "MPENHA", "titulo": "Lei Maria da Penha", "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm", "tipo": "Penal Especial"},
-    
-    # --- Ferramentas ---
-    {"key": "STF_GLOSS", "titulo": "Glossário Jurídico STF", "url": GLOSSARY_URL, "tipo": "Ferramenta"},
 ]
 
 STOPWORDS_PT = {
@@ -93,268 +78,185 @@ STOPWORDS_PT = {
     "menos","já","não","sim","ser","foi","é","são","era","sendo","ter","tem","têm","haver","há",
     "art","artigo","lei","decreto","resolução","acórdão","relator","relatora","turma","câmara",
     "tribunal","stj","stf","tj","trf","ministro","ministra","voto","decisão","processo","recurso",
-    "ementa","embargos","embargo","autos","vistos","juiz","juiza","excelencia", "vossa", "senhoria"
-}
-
-TERM_TRANSLATIONS = {
-    "habeas corpus": "pedido para proteger a liberdade (contra prisão ilegal/abuso).",
-    "periculum libertatis": "risco ligado à liberdade do acusado (perigo concreto de solto).",
-    "fumus boni iuris": "aparência de bom direito (indícios de que o pedido faz sentido).",
-    "periculum in mora": "risco da demora (se esperar, o direito pode se perder).",
-    "ratio decidendi": "motivo central que sustentou a decisão (fundamento decisivo).",
-    "obiter dictum": "comentário do julgador que não foi essencial para decidir.",
-    "distinguishing": "diferenciar o caso do precedente por fatos distintos.",
-    "overruling": "superação de entendimento anterior (mudança de jurisprudência).",
-    "nulidade": "ato/processo inválido por violação de regra/garantia.",
-    "ônus da prova": "quem tem o dever de provar determinado fato.",
-    "tutela de urgência": "decisão rápida e provisória para evitar dano imediato.",
-    "prisão preventiva": "prisão antes da sentença para proteger o processo/sociedade.",
-    "trânsito em julgado": "quando não cabe mais recurso da decisão.",
-    "in dubio pro reo": "na dúvida, decide-se a favor do réu.",
-    "ex tunc": "efeito retroativo (vale desde o início).",
-    "ex nunc": "efeito não retroativo (vale daqui para frente)."
+    "ementa","embargos","embargo","autos","vistos","juiz","juiza","excelencia", "vossa", "senhoria",
+    "trata-se", "cuida-se", "ação", "civil", "penal", "apelante", "apelado", "réu", "autor"
 }
 
 # =========================
-# Funções de Texto (NLP e Regex)
+# Lógica Inteligente (NLP Jurídico)
 # =========================
+
 def normalize(text: str) -> str:
     text = (text or "").strip()
     text = re.sub(r"\r\n?", "\n", text)
     text = re.sub(r"[ \t]+", " ", text)
     return text
 
-def split_sentences(text: str):
-    parts = re.split(r"(?<=[\.\?!])\s+", (text or "").strip())
-    return [p.strip() for p in parts if p.strip()]
+def smart_summary(text: str) -> str:
+    """
+    Tenta encontrar a 'causa de pedir' ou o resumo real do caso
+    procurando por gatilhos textuais comuns em peças jurídicas.
+    """
+    normalized = normalize(text)
+    lower_text = normalized.lower()
+    
+    # 1. Tentar pegar a Ementa (Melhor cenário)
+    ementa_match = re.search(r"\bementa\b[:\s]*(.*?)(?:\bac[oó]rd[aã]o\b|\brelat[oó]rio\b|$)", lower_text, re.DOTALL)
+    if ementa_match and len(ementa_match.group(1)) > 50:
+        raw_ementa = normalized[ementa_match.start(1):ementa_match.end(1)]
+        return raw_ementa[:800].strip() + ("..." if len(raw_ementa)>800 else "")
 
-def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
-    lower = text.lower()
-    start_idx = None
-    for pat in start_patterns:
-        m = re.search(pat, lower, flags=re.I | re.M)
-        if m:
-            start_idx = m.start()
-            break
-    if start_idx is None:
-        return ""
+    # 2. Se não tem Ementa, procura frases de introdução ("Trata-se de...")
+    intro_patterns = [
+        r"(trata-se de\s+[\w\s,]+(?:\.))",
+        r"(cuida-se de\s+[\w\s,]+(?:\.))",
+        r"(o cerne da questão\s+[\w\s,]+(?:\.))",
+        r"(a controvérsia cinge-se\s+[\w\s,]+(?:\.))",
+        r"(insurge-se a parte\s+[\w\s,]+(?:\.))"
+    ]
+    
+    for pat in intro_patterns:
+        match = re.search(pat, lower_text, re.IGNORECASE)
+        if match:
+            # Pega a frase encontrada e mais um pouco de contexto (300 chars)
+            start = match.start()
+            end = min(len(normalized), start + 400)
+            return "SÍNTESE DETECTADA: " + normalized[start:end].strip() + "..."
 
-    tail = text[start_idx:]
-    tail_lower = lower[start_idx:]
+    # 3. Fallback: Pega o início, mas limpa cabeçalhos (Ex: Excelentíssimo...)
+    # Tenta achar onde começa o texto real (após qualificações)
+    lines = normalized.split('\n')
+    clean_lines = []
+    started = False
+    for line in lines:
+        # Pula cabeçalhos comuns
+        if any(x in line.lower() for x in ["excelentíssimo", "juízo", "vara", "autos nº", "processo nº"]):
+            continue
+        if len(line) > 50: # Linhas curtas geralmente são sujeira
+            clean_lines.append(line)
+            
+    return "\n".join(clean_lines[:6])[:600] + "..." # Retorna os primeiros 4 parágrafos úteis
 
-    stop_idx = None
-    for sp in stop_patterns:
-        m = re.search(sp, tail_lower, flags=re.I | re.M)
-        if m and m.start() > 0:
-            stop_idx = m.start()
-            break
+def extract_articles_with_context(text: str) -> list[str]:
+    """
+    Extrai artigos (Ex: Art. 186) e tenta descobrir de qual lei eles são
+    olhando o contexto próximo (janela de palavras).
+    """
+    # Mapeamento de Leis/Códigos
+    law_map = {
+        "cc": "Código Civil", "civil": "Código Civil", "10406": "Código Civil", "10.406": "Código Civil",
+        "cpc": "CPC", "processo civil": "CPC", "13105": "CPC", "13.105": "CPC", "buzaid": "CPC",
+        "cp": "Código Penal", "penal": "Código Penal", "2848": "Código Penal",
+        "cpp": "CPP", "processo penal": "CPP",
+        "clt": "CLT", "trabalho": "CLT", "obreiro": "CLT",
+        "cdc": "CDC", "consumidor": "CDC", "8078": "CDC",
+        "cf": "Constituição Federal", "constituição": "Constituição Federal", "carta magna": "Constituição Federal",
+        "ctn": "CTN", "tributário": "CTN"
+    }
 
-    block = tail[:stop_idx] if stop_idx else tail
-    return block.strip()[:max_chars].strip()
+    found_citations = []
+    
+    # Regex para achar "Art. X" ou "Artigo X"
+    # Captura o número e eventuais parágrafos/incisos curtos
+    article_pattern = re.compile(r"\b(?:art\.?|artigo)\s*(\d+[º°]?[-\w]*)", re.IGNORECASE)
+    
+    # Varre o texto
+    for match in article_pattern.finditer(text):
+        article_num = match.group(1)
+        start_pos = match.start()
+        
+        # Cria uma "janela" de contexto: 150 caracteres antes e depois do Artigo
+        window_start = max(0, start_pos - 150)
+        window_end = min(len(text), start_pos + 150)
+        context_window = text[window_start:window_end].lower()
+        
+        # Tenta identificar a lei no contexto
+        detected_law = None
+        for key, law_name in law_map.items():
+            if key in context_window:
+                detected_law = law_name
+                break # Achou, para
+        
+        if detected_law:
+            citation = f"Art. {article_num} do {detected_law}"
+        else:
+            citation = f"Art. {article_num} (Lei não identificada no contexto)"
+            
+        if citation not in found_citations:
+            found_citations.append(citation)
+            
+    return found_citations[:15] # Limita a 15 para não poluir
 
-def pick_keywords(text: str, k=8):
-    # Limpa pontuação para contar palavras melhor
+def pick_keywords(text: str, k=6):
     clean_text = re.sub(r'[^\w\s]', '', text.lower())
     tokens = [t for t in clean_text.split() if t not in STOPWORDS_PT and len(t) > 3 and not t.isdigit()]
     if not tokens: return []
     counts = Counter(tokens)
     return [w for w, _ in counts.most_common(k)]
 
-def extract_legal_citations(text: str, limit=14):
-    t = text or ""
-    patterns = [
-        r"Lei\s+n[º°]?\s*[\d\.]+(?:/\d{2,4})?",
-        r"art\.\s*\d+[º°]?",
-        r"Súmula\s*(?:Vinculante)?\s*n[º°]?\s*\d+",
-        r"Constituição\s+Federal",
-        r"Código\s+(?:Civil|Penal|Processo\s+Civil|Processo\s+Penal|Defesa\s+do\s+Consumidor|Tributário)",
-        r"CF/88", r"CPC", r"CPP", r"CP", r"CLT", r"CDC", r"CTN",
-        r"Decreto\s+n[º°]?\s*[\d\.]+"
-    ]
-    citations = []
-    for pat in patterns:
-        citations.extend(re.findall(pat, t, flags=re.IGNORECASE))
+def build_smart_search_queries(keywords: list[str], citations: list[str], text_snippet: str) -> list[str]:
+    """
+    Cria queries de pesquisa que funcionam de verdade no Google/Jusbrasil.
+    """
+    queries = []
     
-    seen = set()
-    unique = []
-    for c in citations:
-        clean = normalize(c)
-        # Limpeza extra para "Lei n 123" ficar bonito
-        clean = re.sub(r"\s+", " ", clean)
-        if clean.lower() not in seen:
-            seen.add(clean.lower())
-            unique.append(clean)
-    return unique[:limit]
-
-def extract_jurisprudencia_refs(text: str, limit=12):
-    patterns = [
-        r"\bREsp\s*\d[\d\.\-\/]*\b",
-        r"\bAgRg\b|\bAgInt\b|\bEDcl\b|\bEmbargos?\b",
-        r"\bHC\s*\d[\d\.\-\/]*\b",
-        r"\bRHC\s*\d[\d\.\-\/]*\b",
-        r"\bADI\s*\d[\d\.\-\/]*\b|\bADPF\s*\d[\d\.\-\/]*\b|\bADC\s*\d[\d\.\-\/]*\b",
-        r"\bTema\s*\d+\b",
-        r"\bS[úu]mula\s*\d+\b"
-    ]
-    found = []
-    seen = set()
-    for pat in patterns:
-        for m in re.finditer(pat, text or "", flags=re.I):
-            s = re.sub(r"\s+", " ", m.group(0).strip())
-            k = s.lower()
-            if s and k not in seen:
-                found.append(s)
-                seen.add(k)
-            if len(found) >= limit: return found
-    return found
-
-def analyze_quality(text: str):
-    t = (text or "").strip()
-    warnings = []
-    if len(t) < 450:
-        warnings.append("Texto muito curto: a análise pode ficar genérica.")
-    return " ".join(warnings).strip()
-
-def pick_best_question(text: str, fallback_base: str) -> str:
-    candidates = [s for s in split_sentences(text) if s.endswith("?") and 15 <= len(s) <= 240]
-    if candidates: return candidates[0].strip()
-    return "Qual é a controvérsia jurídica principal deste caso?"
-
-def extract_terms_translation(text: str, max_items: int = 10) -> list[dict]:
-    t = (text or "").lower()
-    hits = []
-    seen = set()
-    for term, tr in TERM_TRANSLATIONS.items():
-        if term in t and term not in seen:
-            seen.add(term)
-            hits.append({"termo": term, "traducao": tr})
-            if len(hits) >= max_items: break
-    return hits
-
-def build_search_queries(pergunta: str, tese: str, keywords: list[str], max_items: int = 4) -> list[str]:
-    kws = [k for k in (keywords or []) if k and len(k) >= 4][:3]
-    out = []
+    # 1. Query Baseada em Artigo + Palavra Chave (Muito forte)
+    # Pega a primeira citação que tenha Lei identificada (não 'Lei não identificada')
+    best_citation = next((c for c in citations if "Lei não" not in c), None)
+    main_keyword = keywords[0] if keywords else "jurisprudência"
     
-    # Query 1: Palavras-chave
-    if kws: out.append(" AND ".join([f'"{k}"' for k in kws]))
-    
-    # Query 2: Pergunta + Tribunal (se detectado)
-    if "stj" in tese.lower():
-        out.append(f"site:stj.jus.br {kws[0] if kws else ''}")
-    elif "stf" in tese.lower():
-        out.append(f"site:stf.jus.br {kws[0] if kws else ''}")
-        
-    return out[:max_items]
+    if best_citation:
+        # Remove "do" e "da" para ficar limpo: "Art. 186 Código Civil Dano Moral"
+        clean_cit = best_citation.replace("do ", "").replace("da ", "")
+        queries.append(f"Jurisprudência {clean_cit} {main_keyword}")
+        queries.append(f"Comentários {clean_cit}")
 
-def build_action_checklist(text: str) -> list[str]:
-    low = (text or "").lower()
-    items = []
-    
-    # Checklist Dinâmico
-    if "prisão" in low or "hc" in low or "liberdade" in low:
-        items.extend([
-            "Verificar se há fundamentação concreta (não genérica).",
-            "Checar contemporaneidade dos fatos (os fatos são recentes?).",
-            "Analisar excesso de prazo na prisão."
-        ])
-    if "dano moral" in low or "indeniza" in low:
-        items.extend([
-            "Verificar nexo causal (ligação entre conduta e dano).",
-            "Analisar critérios do 'quantum' (valor) indenizatório.",
-            "Checar excludentes de responsabilidade."
-        ])
-    if "recurso" in low or "apelação" in low or "agravo" in low:
-        items.extend([
-            "Verificar tempestividade (prazo do recurso).",
-            "Checar preparo (pagamento de custas).",
-            "Conferir prequestionamento (se matéria foi debatida antes)."
-        ])
-        
-    # Itens Padrão se não achar nada específico
-    if not items:
-        items = [
-            "Identificar a controvérsia central.",
-            "Listar fatos relevantes cronologicamente.",
-            "Verificar o dispositivo (conclusão) final.",
-            "Checar prazos processuais a partir da publicação."
-        ]
-    return items
+    # 2. Query Baseada em Tese/Tema
+    if keywords:
+        # Junta as 3 principais palavras: "Dano Moral Indenização Atraso Voo"
+        topic = " ".join(keywords[:3])
+        queries.append(f"{topic} STJ") # STJ é ótimo para teses cíveis
+        queries.append(f"{topic} Acórdão recente")
 
-def suggest_library_links(text: str, max_items: int = 7):
-    t = (text or "").lower()
-    out = []
-    
-    # Prioriza links que batem com o texto
-    for link in LIBRARY_LINKS:
-        keywords = link['titulo'].split()
-        # Se 2 palavras do titulo baterem, sugere
-        matches = sum(1 for k in keywords if len(k) > 3 and k.lower() in t)
-        if matches >= 1:
-            out.append(link)
-    
-    # Se não achou nada específico, manda os gerais
-    if not out:
-        out = [l for l in LIBRARY_LINKS if l['key'] in ['CF_HTML', 'CPC', 'STF_GLOSS']]
-    
-    # Adiciona sempre um curso se for pertinente (Ex: se falar de OAB)
-    if "oab" in t or "exame" in t:
-        out.append([l for l in LIBRARY_LINKS if l['key'] == 'CURSO_ESA'][0])
-    
-    # Remove duplicatas preservando ordem
-    seen = set()
-    unique_out = []
-    for x in out:
-        if x['key'] not in seen:
-            unique_out.append(x)
-            seen.add(x['key'])
-            
-    return unique_out[:max_items]
+    # 3. Query Procedural (se houver menção a recurso)
+    if "recurso" in text_snippet.lower() or "agravo" in text_snippet.lower():
+        queries.append(f"Prazo e requisitos {main_keyword} Novo CPC")
 
-# =========================
-# Lógica Principal
-# =========================
+    return queries[:5]
+
 def build_output(text: str):
+    # 1. Normaliza
     text = normalize(text)
+    
+    # 2. Resumo Inteligente (Melhoria Solicitada)
+    resumo = smart_summary(text)
+    
+    # 3. Palavras-Chave
+    keywords = pick_keywords(text, k=6)
+    tema_principal = f"{', '.join(keywords[:3]).title()}" if keywords else "Análise Jurídica"
 
-    # Tenta extrair a ementa (bloco resumo no topo)
-    ementa = extract_block(text, [r"\bementa\b"], [r"\bac[oó]rd[aã]o\b", r"\brelat[oó]rio\b"], 1700) or text[:900]
+    # 4. Fundamentação Rica (Melhoria Solicitada: Artigo + Lei)
+    fundamentos_normas = extract_articles_with_context(text)
     
-    # Identifica Palavras-chave
-    base_for_keywords = ementa or text[:1500]
-    keywords = pick_keywords(base_for_keywords, k=8)
+    # 5. Jurisprudência (Busca por Súmulas e Temas)
+    juris_refs = re.findall(r"(Súmula\s*\d+|Tema\s*\d+|REsp\s*[\d\.]+)", text, re.IGNORECASE)
+    juris_refs = list(set([j.replace("\n", " ") for j in juris_refs])) # Remove duplicatas
 
-    # Identifica Pergunta e Tese
-    pergunta = pick_best_question(text, base_for_keywords)
+    # 6. Pesquisa para Advogado (Melhoria Solicitada)
+    pesquisas = build_smart_search_queries(keywords, fundamentos_normas, resumo)
     
-    # Extrações Jurídicas
-    fundamentos_normas = extract_legal_citations(text, limit=14)
-    fundamentos_juris = extract_jurisprudencia_refs(text, limit=12)
-    
-    # Resumo inteligente
-    resumo = ementa[:600] + ("..." if len(ementa)>600 else "")
-
-    # Auxiliares
-    pesquisas = build_search_queries(pergunta, ementa, keywords)
-    checklist = build_action_checklist(text)
-    sugestoes = suggest_library_links(text)
-    termos_importantes = extract_terms_translation(text)
-    
-    # Título do Tema
-    tema_principal = f"Análise: {', '.join(keywords[:3]).title()}" if keywords else "Análise Jurídica"
+    # 7. Sugestões de Biblioteca
+    sugestoes = [l for l in LIBRARY_LINKS if l['key'] in ['CF_HTML', 'CPC', 'CC']] 
 
     return {
         "tema_principal": tema_principal,
-        "pergunta": pergunta,
+        "resumo": resumo,
         "fundamentos_normas": fundamentos_normas,
-        "fundamentos_juris": fundamentos_juris,
+        "fundamentos_juris": juris_refs,
         "keywords": keywords,
         "queries_juris": pesquisas,
-        "checklist": checklist,
-        "resumo": resumo,
-        "alerta": analyze_quality(text),
         "sugestoes": sugestoes,
-        "termos_importantes": termos_importantes,
-        "glossario_source": GLOSSARY_URL,
+        "alerta": "Texto curto - análise limitada" if len(text) < 500 else None
     }
 
 # =========================
@@ -395,7 +297,6 @@ def get_text_from_upload(file):
 # =========================
 @app.route("/")
 def home():
-    # Pega histórico do banco (últimos 5)
     historico = Analise.query.order_by(Analise.data_criacao.desc()).limit(5).all()
     return render_template("index.html", historico=historico)
 
@@ -415,10 +316,8 @@ def analisar():
         flash("O documento está vazio ou muito curto.", "error")
         return redirect(url_for("home"))
 
-    # Processa
     out = build_output(texto)
     
-    # Salva no Banco de Dados
     nova = Analise(
         titulo_resumo=out["tema_principal"],
         texto_original=texto,
@@ -450,18 +349,8 @@ def excluir(id):
     return redirect(url_for("home"))
 
 @app.get("/biblioteca")
-def biblioteca():
-    return render_template("biblioteca.html", links=LIBRARY_LINKS)
+def biblioteca(): return render_template("biblioteca.html", links=LIBRARY_LINKS)
 
-@app.get("/glossario")
-def glossario():
-    return redirect(GLOSSARY_URL)
-
-@app.get("/sobre")
-def sobre():
-    return render_template("sobre.html")
-
-# Erros
 @app.errorhandler(404)
 def page_not_found(e): return render_template('404.html'), 404
 @app.errorhandler(500)
