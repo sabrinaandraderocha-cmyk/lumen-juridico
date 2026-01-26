@@ -9,38 +9,38 @@ from flask import (
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 
-# Leitura de arquivos
+# Bibliotecas de leitura (Certifique-se de que estão no requirements.txt)
 from pypdf import PdfReader
-from docx import Document
+from docx import Document as DocxDocument
 
 # Banco de dados
 from flask_sqlalchemy import SQLAlchemy
 
 load_dotenv()
 
-# =========================
-# Configuração do App
-# =========================
+# =========================================================
+# CONFIGURAÇÃO DO AMBIENTE
+# =========================================================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
 UPLOAD_DIR = os.path.join(INSTANCE_DIR, "uploads")
 DB_PATH = os.path.join(INSTANCE_DIR, "lumen.db")
 
+# Garante a existência das pastas no servidor
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(INSTANCE_DIR, exist_ok=True)
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "dev-secret-allminds-2026")
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024 
+app.secret_key = os.getenv("SECRET_KEY", "lumen-juridico-key-2026")
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # Limite de 16MB
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-ALLOWED_EXTS = {".pdf", ".docx", ".txt"}
 
-# =========================
-# Modelo do Banco de Dados
-# =========================
+# =========================================================
+# MODELO DE DADOS (HISTÓRICO)
+# =========================================================
 class Analise(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
@@ -51,130 +51,140 @@ class Analise(db.Model):
 with app.app_context():
     db.create_all()
 
-# =========================
-# Biblioteca Completa
-# =========================
-GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
-
+# =========================================================
+# BIBLIOTECA JURÍDICA (TODOS OS LINKS DO SEU PRINT)
+# =========================================================
 LIBRARY_LINKS = [
-    {"key": "CF", "titulo": "Constituição Federal", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", "tipo": "Constituição"},
-    {"key": "CC", "titulo": "Código Civil", "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm", "tipo": "Código"},
-    {"key": "CPC", "titulo": "Código de Processo Civil", "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm", "tipo": "Código"},
-    {"key": "CP", "titulo": "Código Penal", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm", "tipo": "Código"},
-    {"key": "CPP", "titulo": "Código de Processo Penal", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm", "tipo": "Código"},
-    {"key": "CLT", "titulo": "Consolidação das Leis do Trabalho", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm", "tipo": "Trabalhista"},
-    {"key": "CDC", "titulo": "Código de Defesa do Consumidor", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm", "tipo": "Consumidor"},
-    {"key": "ECA", "titulo": "Estatuto da Criança e Adolescente", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm", "tipo": "Estatuto"},
-    {"key": "MPENHA", "titulo": "Lei Maria da Penha", "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm", "tipo": "Penal Especial"},
-    {"key": "CTN", "titulo": "Código Tributário Nacional", "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm", "tipo": "Tributário"},
+    {"categoria": "CONSTITUIÇÃO", "titulo": "Constituição Federal", "url": "http://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"},
+    {"categoria": "CÓDIGO", "titulo": "Código Civil", "url": "http://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm"},
+    {"categoria": "CÓDIGO", "titulo": "Código de Processo Civil", "url": "http://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm"},
+    {"categoria": "CÓDIGO", "titulo": "Código Penal", "url": "http://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm"},
+    {"categoria": "CÓDIGO", "titulo": "Código de Processo Penal", "url": "http://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm"},
+    {"categoria": "TRABALHISTA", "titulo": "Consolidação das Leis do Trabalho", "url": "http://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm"},
+    {"categoria": "CONSUMIDOR", "titulo": "Código de Defesa do Consumidor", "url": "http://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm"},
+    {"categoria": "ESTATUTO", "titulo": "Estatuto da Criança e Adolescente", "url": "http://www.planalto.gov.br/ccivil_03/leis/l8069.htm"},
+    {"categoria": "PENAL ESPECIAL", "titulo": "Lei Maria da Penha", "url": "http://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm"},
+    {"categoria": "TRIBUTÁRIO", "titulo": "Código Tributário Nacional", "url": "http://www.planalto.gov.br/ccivil_03/leis/l5172compilado.htm"}
 ]
 
-# Dicionário para o Glossário Dinâmico
 GLOSSARY_DICT = {
-    "acórdão": "Decisão final proferida por um tribunal (grupo de juízes).",
-    "prescrição": "Perda do direito de punir ou cobrar algo pelo passar do tempo.",
+    "acórdão": "Decisão proferida por um colegiado de juízes (tribunal).",
+    "prescrição": "Perda do prazo para exercer o direito de ação.",
     "ementa": "Resumo oficial de uma decisão judicial.",
     "tempestivo": "Ato realizado dentro do prazo legal.",
-    "preclusão": "Perda do direito de agir no processo por perda de prazo.",
+    "preclusão": "Perda do direito de se manifestar no processo por decurso de prazo."
 }
 
-# =========================
-# Lógica de Inteligência
-# =========================
+# =========================================================
+# LÓGICA DE PROCESSAMENTO (IA & ARQUIVOS)
+# =========================================================
 
-def extract_law_context(text: str, start_pos: int) -> str:
-    """Detecta qual lei o artigo pertence olhando as palavras vizinhas."""
-    law_map = {
-        "penal": "Código Penal", "civil": "Código Civil", "processo civil": "CPC",
-        "trabalho": "CLT", "consumidor": "CDC", "constituição": "CF/88", "tributário": "CTN"
+def ler_arquivo(caminho):
+    ext = os.path.splitext(caminho)[1].lower()
+    conteudo = ""
+    try:
+        if ext == ".pdf":
+            reader = PdfReader(caminho)
+            for page in reader.pages:
+                conteudo += page.extract_text() or ""
+        elif ext == ".docx":
+            doc = DocxDocument(caminho)
+            conteudo = "\n".join([p.text for p in doc.paragraphs])
+    except Exception as e:
+        print(f"Erro na leitura: {e}")
+    return conteudo
+
+def identificar_norma(texto, posicao):
+    amostra = texto[max(0, posicao-100):posicao+100].lower()
+    regras = {
+        "penal": "Código Penal", "civil": "Código Civil", "cpc": "CPC",
+        "trabalh": "CLT", "consumidor": "CDC", "constitui": "CF/88"
     }
-    window = text[max(0, start_pos - 100):min(len(text), start_pos + 100)].lower()
-    for key, name in law_map.items():
-        if key in window: return name
-    return "Lei/Código não identificado"
+    for chave, nome in regras.items():
+        if chave in amostra: return nome
+    return "Legislação não especificada"
 
-def build_output(text: str):
-    text_norm = text.replace('\n', ' ')
-    artigos_brutos = re.finditer(r"\b(?:art\.?|artigo)\s*(\d+)", text, re.I)
-    
+def processar_texto(texto):
+    # Detectar Artigos
+    artigos = re.findall(r"(?:art\.?|artigo)\s*(\d+)", texto, re.I)
     fundamentos = []
-    for match in artigos_brutos:
-        num = match.group(1)
-        lei = extract_law_context(text, match.start())
-        ref = f"Art. {num} do {lei}"
-        if ref not in fundamentos: fundamentos.append(ref)
+    for num in artigos[:10]: # Limita aos 10 primeiros
+        norma = identificar_norma(texto, texto.find(num))
+        fundamentos.append(f"Art. {num} do {norma}")
 
-    keywords = [w for w, _ in Counter(re.findall(r'\w{5,}', text.lower())).most_common(6)]
-    
-    # Checklist Inteligente
-    checklist = ["Revisar fundamentação legal citada", "Verificar assinaturas e datas"]
-    if "prescrição" in text.lower(): checklist.append("Calcular marcos interruptivos da prescrição")
-    if "recurso" in text.lower(): checklist.append("Conferir tempestividade e preparo recursal")
+    # Extrair palavras-chave (frequência)
+    palavras = re.findall(r'\w{6,}', texto.lower())
+    top_words = [w for w, _ in Counter(palavras).most_common(5)]
 
     # Glossário Dinâmico
-    found_glossary = []
-    for term, definition in GLOSSARY_DICT.items():
-        if term in text.lower():
-            found_glossary.append({"termo": term.title(), "definicao": definition})
+    termos_encontrados = []
+    for termo, desc in GLOSSARY_DICT.items():
+        if termo in texto.lower():
+            termos_encontrados.append({"termo": termo.title(), "definicao": desc})
 
     return {
-        "tema_principal": f"Análise de {', '.join(keywords[:2]).title()}",
-        "resumo": text[:700] + "...",
-        "fundamentos_normas": fundamentos[:12],
-        "keywords": keywords,
-        "queries_juris": [f"Jurisprudência STJ {k}" for k in keywords[:2]],
-        "checklist": checklist,
-        "glossario": found_glossary or [{"termo": "Processo", "definicao": "Conjunto de atos judiciais"}],
-        "sugestoes": LIBRARY_LINKS
+        "titulo": f"Análise: {top_words[0].title() if top_words else 'Documento'}",
+        "resumo": texto[:800] + "...",
+        "normas": list(set(fundamentos)),
+        "keywords": top_words,
+        "glossario": termos_encontrados
     }
 
-# =========================
-# Rotas (Todas Restauradas)
-# =========================
+# =========================================================
+# ROTAS DO SISTEMA
+# =========================================================
 
 @app.route("/")
 def home():
-    historico_dados = Analise.query.order_by(Analise.id.desc()).limit(5).all()
-    return render_template("index.html", historico=historico_dados)
+    recentes = Analise.query.order_by(Analise.id.desc()).limit(3).all()
+    return render_template("index.html", historico=recentes)
 
 @app.route("/analisar", methods=["POST"])
 def analisar():
-    texto = request.form.get("texto", "").strip()
+    texto_input = request.form.get("texto", "").strip()
     arquivo = request.files.get("arquivo")
-    if arquivo and arquivo.filename:
-        # Extração básica de PDF/Docx integrada aqui
-        texto = f"{texto}\n\n[Texto extraído do arquivo]".strip()
     
-    if not texto or len(texto) < 10:
-        flash("Conteúdo insuficiente."); return redirect(url_for("home"))
+    texto_final = texto_input
+    if arquivo and arquivo.filename:
+        filename = secure_filename(arquivo.filename)
+        path = os.path.join(UPLOAD_DIR, filename)
+        arquivo.save(path)
+        texto_final += "\n" + ler_arquivo(path)
+        os.remove(path) # Limpeza
 
-    out = build_output(texto)
-    nova = Analise(titulo_resumo=out["tema_principal"], texto_original=texto)
-    db.session.add(nova); db.session.commit()
-    return render_template("resultado.html", out=out, texto=texto, now=datetime.now(), analise_id=nova.id)
+    if not texto_final or len(texto_final) < 20:
+        flash("Por favor, insira um texto mais longo ou um arquivo válido.")
+        return redirect(url_for("home"))
 
-@app.route("/historico")
-def historico():
-    page = request.args.get('page', 1, type=int)
-    analises = Analise.query.order_by(Analise.id.desc()).paginate(page=page, per_page=10)
-    return render_template("historico.html", paginacao=analises)
+    resultado = processar_texto(texto_final)
+    
+    # Salvar no Banco
+    nova_analise = Analise(titulo_resumo=resultado["titulo"], texto_original=texto_final)
+    db.session.add(nova_analise)
+    db.session.commit()
+
+    return render_template("resultado.html", out=resultado, texto=texto_final, id=nova_analise.id)
 
 @app.route("/biblioteca")
 def biblioteca():
     return render_template("biblioteca.html", links=LIBRARY_LINKS)
 
-@app.route("/sobre")
-def sobre(): return render_template("sobre.html")
-
-@app.route("/glossario")
-def glossario(): return redirect(GLOSSARY_URL)
+@app.route("/historico")
+def historico():
+    page = request.args.get('page', 1, type=int)
+    dados = Analise.query.order_by(Analise.id.desc()).paginate(page=page, per_page=10)
+    return render_template("historico.html", paginacao=dados)
 
 @app.route("/excluir/<int:id>")
 def excluir(id):
-    analise = Analise.query.get_or_404(id)
-    db.session.delete(analise); db.session.commit()
-    return redirect(url_for("home"))
+    item = Analise.query.get_or_404(id)
+    db.session.delete(item)
+    db.session.commit()
+    return redirect(url_for("historico"))
+
+@app.route("/sobre")
+def sobre():
+    return render_template("sobre.html")
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "10000"))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
