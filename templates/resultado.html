@@ -68,17 +68,6 @@
             {% else %}
                 <p class="muted">Nenhuma norma específica detectada.</p>
             {% endif %}
-
-            {% if out.fundamentos_juris %}
-                <h3 style="margin-top: 20px; font-size: 1rem; color: #059669;">Jurisprudência Citada</h3>
-                <ul style="list-style: none; padding: 0;">
-                    {% for j in out.fundamentos_juris %}
-                        <li style="padding: 6px 0; border-bottom: 1px solid #f1f5f9; color: #475569; font-size: 0.85rem;">
-                            📜 {{ j }}
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
         </section>
 
         <section class="card shadow-sm">
@@ -98,7 +87,7 @@
 
             {% if out.queries_juris %}
                 <div style="background: #f5f3ff; padding: 12px; border-radius: 8px; border: 1px solid #ddd6fe;">
-                    <strong style="color: #5b21b6; font-size: 0.9rem;">Sugestões de Busca:</strong>
+                    <strong style="color: #5b21b6; font-size: 0.9rem;">Sugestões para STJ/STF:</strong>
                     <ul style="margin-top: 8px; padding-left: 15px; font-size: 0.85rem; color: #4c1d95;">
                         {% for q in out.queries_juris %}
                             <li style="margin-bottom: 6px;"><code>{{ q }}</code></li>
@@ -122,13 +111,13 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p class="muted" style="margin-top:10px;">Nenhum ponto de atenção crítico identificado.</p>
+                <p class="muted" style="margin-top:10px;">Aguardando processamento de termos específicos.</p>
             {% endif %}
         </section>
 
         <section class="card shadow-sm">
             <h2 style="color: #0891b2; display: flex; align-items: center; gap: 8px;">
-                📖 Glossário de Termos
+                📖 Glossário Técnico
             </h2>
             {% if out.glossario %}
                 <ul style="list-style: none; padding: 0; margin-top: 10px;">
@@ -140,18 +129,18 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p class="muted" style="margin-top:10px;">Nenhum termo técnico complexo detectado no texto.</p>
+                <p class="muted" style="margin-top:10px;">Nenhum termo jurídico complexo identificado nesta peça.</p>
             {% endif %}
         </section>
 
     </div>
 
     {% if out.sugestoes %}
-    <section class="card shadow-sm" style="margin-top: 20px; background: #f8fafc; border-left: 4px solid #cbd5e1;">
-        <h3 style="font-size: 1rem; color: #475569; margin-bottom: 12px;">🔗 Atalhos da Biblioteca Acadêmica</h3>
+    <section class="card shadow-sm" style="margin-top: 20px; background: #f8fafc;">
+        <h3 style="font-size: 1rem; color: #475569; margin-bottom: 12px;">🔗 Atalhos da Biblioteca</h3>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             {% for item in out.sugestoes %}
-                <a href="{{ item.url }}" target="_blank" style="text-decoration: none; font-size: 0.85rem; color: #2563eb; background: white; padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px; transition: all 0.2s;">
+                <a href="{{ item.url }}" target="_blank" style="text-decoration: none; font-size: 0.85rem; color: #2563eb; background: white; padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
                     {{ item.titulo }} ↗
                 </a>
             {% endfor %}
@@ -194,7 +183,7 @@
                     `FUNDAMENTAÇÃO LEGAL:\n${normas.map(n => '• '+n).join('\n')}\n\n` +
                     `CHECKLIST PRÁTICO:\n${checklist.map(c => '[ ] '+c).join('\n')}`;
 
-      copyTextToClipboard(texto).then(() => alert("Relatório completo copiado para a área de transferência! 📋"));
+      copyTextToClipboard(texto).then(() => alert("Relatório completo copiado! 📋"));
     }
   </script>
 
@@ -203,7 +192,6 @@
       .hero, .actions, .btn, .nav, footer { display: none !important; }
       body { background: white; padding: 0; }
       .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
-      .container { width: 100% !important; max-width: none !important; }
     }
     .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .btn:hover { opacity: 0.9; transform: translateY(-1px); }
