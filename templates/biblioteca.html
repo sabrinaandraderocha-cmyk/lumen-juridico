@@ -1,33 +1,102 @@
 {% extends "base.html" %}
 {% block title %}Biblioteca • Lumen Jurídico{% endblock %}
+
 {% block content %}
-  <section class="hero">
-    <h1>Biblioteca rápida</h1>
-    <p class="muted">
-      Atalhos oficiais do Planalto. Quando não houver PDF consolidado,
-      utilize o texto compilado oficial em HTML.
+
+  <section class="hero" style="text-align: center; padding-bottom: 30px;">
+    <h1>Biblioteca Jurídica</h1>
+    <p class="muted" style="max-width: 600px; margin: 0 auto 20px;">
+      Atalhos oficiais do Planalto e STF. Acesse rapidamente a legislação consolidada.
     </p>
-  </section>
 
-  <section class="card">
-    <ul class="links">
-      {# remove o primeiro e o último link #}
-      {% for item in links[1:-1] %}
-        <li>
-          <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer">
-            {{ item.titulo }}
-          </a>
-          <span class="pill">{{ item.tipo }}</span>
-        </li>
-      {% endfor %}
-    </ul>
-
-    <div class="note">
-      <strong>Observação:</strong>
-      o Planalto nem sempre publica um <em>PDF consolidado</em> dos códigos
-      (com todas as alterações).  
-      Quando isso não existir, o melhor “oficial” costuma ser o
-      <strong>texto compilado em HTML</strong>.
+    <div style="max-width: 500px; margin: 0 auto; position: relative;">
+      <input 
+        type="text" 
+        id="searchLibrary" 
+        onkeyup="filterLibrary()" 
+        placeholder="🔎 Pesquisar lei ou código..." 
+        style="width: 100%; padding: 12px 20px; border-radius: 99px; border: 1px solid #ccc; font-size: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); outline: none;"
+      >
     </div>
   </section>
+
+  <section class="card" style="background: #f8fafc; border: none; box-shadow: none;">
+    
+    <div id="libraryGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;">
+      
+      {% for item in links %}
+        <a href="{{ item.url }}" target="_blank" rel="noopener noreferrer" class="lib-card" style="text-decoration: none; color: inherit;">
+          <div style="background: white; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; height: 100%; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.2s, border-color 0.2s;">
+            
+            <div>
+              <div style="font-size: 0.8em; text-transform: uppercase; color: #64748b; margin-bottom: 5px; font-weight: 600; display: flex; justify-content: space-between;">
+                <span>{{ item.tipo }}</span>
+                {% if '.pdf' in item.url %}
+                  <span style="color: #ef4444;">PDF 📄</span>
+                {% else %}
+                  <span style="color: #3b82f6;">WEB 🌐</span>
+                {% endif %}
+              </div>
+              
+              <h3 class="lib-title" style="margin: 0; font-size: 1.05rem; color: #1e293b; font-weight: 600;">
+                {{ item.titulo }}
+              </h3>
+            </div>
+
+            <div style="margin-top: 10px; font-size: 0.85em; color: #3b82f6; font-weight: 500;">
+              Acessar agora &rarr;
+            </div>
+          </div>
+        </a>
+      {% endfor %}
+
+    </div>
+
+    <div id="noResults" style="display: none; text-align: center; padding: 40px; color: #94a3b8;">
+      Nenhuma lei encontrada com este nome.
+    </div>
+
+    <div class="note" style="margin-top: 30px; background: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 6px; font-size: 0.9em; color: #92400e;">
+      <strong>⚠️ Observação:</strong>
+      O Planalto nem sempre publica um <em>PDF consolidado</em> dos códigos com todas as alterações recentes.  
+      Quando isso não existir, a fonte mais segura é sempre o <strong>texto compilado em HTML</strong>.
+    </div>
+
+  </section>
+
+  <script>
+    function filterLibrary() {
+      var input, filter, grid, cards, title, i, txtValue;
+      input = document.getElementById('searchLibrary');
+      filter = input.value.toUpperCase();
+      grid = document.getElementById("libraryGrid");
+      cards = grid.getElementsByClassName('lib-card');
+      var hasVisible = false;
+
+      for (i = 0; i < cards.length; i++) {
+        title = cards[i].getElementsByClassName("lib-title")[0];
+        if (title) {
+          txtValue = title.textContent || title.innerText;
+          if (txtValue.toUpperCase().indexOf(filter) > -1) {
+            cards[i].style.display = "";
+            hasVisible = true;
+          } else {
+            cards[i].style.display = "none";
+          }
+        }
+      }
+
+      // Mostra mensagem se tudo estiver oculto
+      document.getElementById('noResults').style.display = hasVisible ? "none" : "block";
+    }
+  </script>
+
+  <style>
+    .lib-card:hover > div {
+      border-color: #3b82f6 !important;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+
 {% endblock %}
