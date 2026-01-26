@@ -55,22 +55,41 @@ with app.app_context():
     db.create_all()
 
 # =========================
-# Dados Estáticos
+# Biblioteca e Glossário
 # =========================
+GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
+
 LIBRARY_LINKS = [
+    # --- Legislação Fundamental ---
     {"key": "CF_HTML", "titulo": "Constituição Federal", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", "tipo": "Constituição"},
     {"key": "CC", "titulo": "Código Civil", "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm", "tipo": "Código"},
-    {"key": "CPC", "titulo": "Código de Processo Civil", "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm", "tipo": "Código"},
-    {"key": "CP", "titulo": "Código Penal", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm", "tipo": "Código"},
-    {"key": "CPP", "titulo": "Código de Processo Penal", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm", "tipo": "Código"},
+    {"key": "CPC", "titulo": "Código de Processo Civil (CPC)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm", "tipo": "Código"},
+    {"key": "CP", "titulo": "Código Penal (CP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm", "tipo": "Código"},
+    {"key": "CPP", "titulo": "Código de Processo Penal (CPP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm", "tipo": "Código"},
+    {"key": "CLT", "titulo": "Consolidação das Leis do Trabalho (CLT)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm", "tipo": "Trabalhista"},
     {"key": "CDC", "titulo": "Código de Defesa do Consumidor", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm", "tipo": "Consumidor"},
+    
+    # --- Legislação Específica ---
+    {"key": "CTN", "titulo": "Código Tributário Nacional", "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm", "tipo": "Tributário"},
+    {"key": "LIC", "titulo": "Lei de Licitações (14.133/21)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm", "tipo": "Administrativo"},
+    {"key": "LIA", "titulo": "Lei de Improbidade Administrativa", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm", "tipo": "Administrativo"},
+    {"key": "ECA", "titulo": "Estatuto da Criança e Adolescente", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm", "tipo": "Estatuto"},
+    {"key": "MPENHA", "titulo": "Lei Maria da Penha", "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm", "tipo": "Penal Especial"},
+    
+    # --- Cursos Gratuitos ---
+    {"key": "CURSO_STF", "titulo": "Cursos EAD – Supremo Tribunal Federal", "url": "https://ead.stf.jus.br/course/index.php?categoryid=3", "tipo": "🎓 Curso Gratuito"},
+    {"key": "CURSO_ESA", "titulo": "ESA OAB – Cursos Gratuitos", "url": "https://esa.oab.org.br/home/ver-cursos?filter_categories_id%5B%5D=24", "tipo": "🎓 Curso Gratuito"},
+    {"key": "CURSO_GOV", "titulo": "Escola Virtual Gov (EV.G) – Direito", "url": "https://www.escolavirtual.gov.br/catalogo", "tipo": "🎓 Curso Gratuito"},
+
+    # --- Ferramentas ---
+    {"key": "STF_GLOSS", "titulo": "Glossário Jurídico STF", "url": GLOSSARY_URL, "tipo": "Ferramenta"},
 ]
 
 STOPWORDS_PT = {
     "a","o","os","as","um","uma","uns","umas","de","do","da","dos","das","em","no","na","nos","nas",
     "por","para","com","sem","sobre","entre","e","ou","que","se","ao","aos","à","às","como",
     "art","artigo","lei","decreto","tribunal","stj","stf","processo","recurso","ementa","autos",
-    "vistos", "vossa", "excelência", "parte", "autos", "folhas"
+    "vistos", "vossa", "excelência", "parte", "folhas"
 }
 
 # =========================
@@ -87,12 +106,10 @@ def smart_summary(text: str) -> str:
     normalized = normalize(text)
     lower_text = normalized.lower()
     
-    # 1. Ementa
     ementa_match = re.search(r"\bementa\b[:\s]*(.*?)(?:\bac[oó]rd[aã]o\b|\brelat[oó]rio\b|$)", lower_text, re.DOTALL)
     if ementa_match and len(ementa_match.group(1)) > 50:
         return normalized[ementa_match.start(1):ementa_match.end(1)].strip()[:800] + "..."
 
-    # 2. Gatilhos de tese
     intro_patterns = [
         r"(trata-se de\s+.*?\.)",
         r"(cuida-se de\s+.*?\.)",
@@ -175,7 +192,7 @@ def build_output(text: str):
         "fundamentos_juris": juris_refs,
         "keywords": keywords,
         "queries_juris": pesquisas,
-        "sugestoes": [l for l in LIBRARY_LINKS if l['key'] in ['CF_HTML', 'CPC', 'CC']],
+        "sugestoes": LIBRARY_LINKS[:8], # Sugere os 8 primeiros por padrão
         "alerta": "Texto excessivamente curto - análise limitada." if len(text) < 500 else None
     }
 
@@ -185,7 +202,6 @@ def build_output(text: str):
 def get_text_from_upload(file):
     filename = secure_filename(file.filename)
     if not filename: return ""
-    
     ext = os.path.splitext(filename)[1].lower()
     path = os.path.join(UPLOAD_DIR, filename)
     file.save(path)
@@ -216,20 +232,17 @@ def home():
 def analisar():
     texto = request.form.get("texto", "").strip()
     arquivo = request.files.get("arquivo")
-    
     if arquivo and arquivo.filename:
-        texto_arquivo = get_text_from_upload(arquivo)
-        texto = f"{texto}\n\n{texto_arquivo}".strip()
+        texto = f"{texto}\n\n{get_text_from_upload(arquivo)}".strip()
     
     if not texto or len(texto) < 10:
-        flash("Documento ou texto insuficiente para análise.", "error")
+        flash("Documento ou texto insuficiente.", "error")
         return redirect(url_for("home"))
 
     out = build_output(texto)
     nova = Analise(titulo_resumo=out["tema_principal"], texto_original=texto, tipo_peca="Jurídico")
     db.session.add(nova)
     db.session.commit()
-
     return render_template("resultado.html", out=out, texto=texto, now=datetime.now(), analise_id=nova.id)
 
 @app.route("/resultado/<int:id>")
@@ -249,10 +262,10 @@ def excluir(id):
     analise = Analise.query.get_or_404(id)
     db.session.delete(analise)
     db.session.commit()
-    flash("Análise removida com sucesso.", "success")
+    flash("Análise removida.", "success")
     return redirect(url_for("home"))
 
-@app.get("/biblioteca")
+@app.route("/biblioteca")
 def biblioteca():
     return render_template("biblioteca.html", links=LIBRARY_LINKS)
 
@@ -262,8 +275,7 @@ def sobre():
 
 @app.route("/glossario")
 def glossario():
-    # Redirecionamento preventivo para evitar BuildError no HTML antigo
-    return redirect("https://portal.stf.jus.br/jurisprudencia/glossario.asp")
+    return redirect(GLOSSARY_URL)
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
