@@ -33,119 +33,331 @@
 
   <div style="max-width: 900px; margin: 0 auto;">
 
+    <!-- =======================
+         TEMA + SÍNTESE
+         ======================= -->
     <section class="card shadow-sm" style="margin-bottom: 20px; border-top: 4px solid #2563eb;">
       <h2 style="color: #1e3a8a; display: flex; align-items: center; gap: 8px;">
         📌 Tema Principal
       </h2>
-      <p style="font-size: 1.2rem; font-weight: 600; color: #1e293b; margin-bottom: 15px;">
+      <p style="font-size: 1.2rem; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
         {{ out.tema_principal or "Análise Jurídica Geral" }}
       </p>
+
+      {% if out.area_sugerida or out.codigos_relacionados %}
+        <p class="muted" style="margin: 0 0 14px 0; font-size: 0.9rem;">
+          {% if out.area_sugerida %}
+            <strong>Área sugerida:</strong> {{ out.area_sugerida }}
+          {% endif %}
+          {% if out.area_sugerida and out.codigos_relacionados %} • {% endif %}
+          {% if out.codigos_relacionados %}
+            <strong>Códigos relacionados:</strong> {{ out.codigos_relacionados|join(", ") }}
+          {% endif %}
+        </p>
+      {% endif %}
 
       {% if out.resumo %}
         <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
           <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #475569;">Síntese do Caso</h3>
-          <p style="line-height: 1.6; color: #334155; font-size: 0.95rem;">
+          <p style="line-height: 1.6; color: #334155; font-size: 0.95rem; margin:0;">
             {{ out.resumo }}
           </p>
         </div>
       {% endif %}
     </section>
 
+    <!-- =======================
+         METADADOS DO CASO + DISPOSITIVO
+         ======================= -->
+    {% if out.meta or out.dispositivo %}
+      <section class="card shadow-sm" style="margin-bottom: 20px; border-left: 4px solid #0ea5e9;">
+        <h2 style="color: #0369a1; display: flex; align-items: center; gap: 8px;">
+          🧾 Dados do Caso
+        </h2>
+
+        {% set meta = out.meta or {} %}
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 10px;">
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+            <div class="muted" style="font-size:0.8rem;">Tipo de peça</div>
+            <div style="font-weight:600; color:#0f172a;">{{ meta.tipo_peca_detectado or "—" }}</div>
+          </div>
+
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+            <div class="muted" style="font-size:0.8rem;">Tribunal</div>
+            <div style="font-weight:600; color:#0f172a;">{{ meta.tribunal or "—" }}</div>
+          </div>
+
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+            <div class="muted" style="font-size:0.8rem;">Classe</div>
+            <div style="font-weight:600; color:#0f172a;">{{ meta.classe or "—" }}</div>
+          </div>
+
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+            <div class="muted" style="font-size:0.8rem;">Número</div>
+            <div style="font-weight:600; color:#0f172a;">
+              {% if meta.numero %}{{ meta.numero }}{% elif meta.numero_cnj %}{{ meta.numero_cnj }}{% else %}—{% endif %}
+            </div>
+          </div>
+
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+            <div class="muted" style="font-size:0.8rem;">Relator(a)</div>
+            <div style="font-weight:600; color:#0f172a;">{{ meta.relator or "—" }}</div>
+          </div>
+
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px;">
+            <div class="muted" style="font-size:0.8rem;">Datas mencionadas</div>
+            <div style="font-weight:600; color:#0f172a;">
+              {% if meta.datas_mencionadas %}
+                {{ meta.datas_mencionadas|join(" • ") }}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        {% if out.dispositivo %}
+          <div style="margin-top:14px; background:#ecfeff; border:1px solid #a5f3fc; padding:12px; border-radius:8px;">
+            <strong style="color:#0e7490;">📍 Dispositivo / Resultado</strong>
+            <p style="margin:8px 0 0 0; color:#155e75; line-height:1.55;">
+              {{ out.dispositivo }}
+            </p>
+          </div>
+        {% endif %}
+      </section>
+    {% endif %}
+
+    <!-- =======================
+         SINTAXE DO CASO (novo)
+         ======================= -->
+    {% if out.sintaxe_caso %}
+      <section class="card shadow-sm" style="margin-bottom: 20px; border-left: 4px solid #22c55e;">
+        <h2 style="color: #166534; display: flex; align-items: center; gap: 8px;">
+          🧠 Sintaxe do Caso
+        </h2>
+
+        <div style="display:grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px;">
+          {% if out.sintaxe_caso.fatos_relevantes %}
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:8px;">
+              <strong style="color:#166534;">Fatos relevantes</strong>
+              <p style="margin:8px 0 0 0; color:#14532d; line-height:1.55;">
+                {{ out.sintaxe_caso.fatos_relevantes }}
+              </p>
+            </div>
+          {% endif %}
+
+          {% if out.sintaxe_caso.controversia or out.pergunta %}
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:8px;">
+              <strong style="color:#166534;">Controvérsia</strong>
+              <p style="margin:8px 0 0 0; color:#14532d; line-height:1.55;">
+                {{ out.sintaxe_caso.controversia or out.pergunta }}
+              </p>
+            </div>
+          {% endif %}
+
+          {% if out.sintaxe_caso.fundamentos %}
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:8px;">
+              <strong style="color:#166534;">Fundamentos (indícios no texto)</strong>
+              <ul style="margin:8px 0 0 0; padding-left: 18px; color:#14532d; line-height:1.6;">
+                {% for fx in out.sintaxe_caso.fundamentos %}
+                  <li style="margin-bottom:6px;">{{ fx }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
+          {% if out.sintaxe_caso.resultado_dispositivo %}
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:8px;">
+              <strong style="color:#166534;">Resultado / dispositivo</strong>
+              <p style="margin:8px 0 0 0; color:#14532d; line-height:1.55;">
+                {{ out.sintaxe_caso.resultado_dispositivo }}
+              </p>
+            </div>
+          {% endif %}
+        </div>
+      </section>
+    {% endif %}
+
+    <!-- =======================
+         GRID 1: FUNDAMENTOS + PESQUISA
+         ======================= -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-        
-        <section class="card shadow-sm">
-            <h2 style="color: #059669; display: flex; align-items: center; gap: 8px;">
-                ⚖️ Fundamentação Legal
-            </h2>
-            {% if out.fundamentos_normas %}
-                <ul style="list-style: none; padding: 0; margin-top: 10px;">
-                    {% for f in out.fundamentos_normas %}
-                        <li style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 0.9rem;">
-                            🏛️ {{ f }}
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p class="muted">Nenhuma norma específica detectada.</p>
-            {% endif %}
-        </section>
 
-        <section class="card shadow-sm">
-            <h2 style="color: #7c3aed; display: flex; align-items: center; gap: 8px;">
-                🔎 Estratégia de Pesquisa
-            </h2>
-            
-            {% if out.keywords %}
-                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; margin-top: 10px;">
-                    {% for k in out.keywords %}
-                        <span style="background: #f3f4f6; color: #4b5563; padding: 4px 10px; border-radius: 99px; font-size: 0.8rem; border: 1px solid #e5e7eb;">
-                            #{{ k }}
-                        </span>
-                    {% endfor %}
-                </div>
-            {% endif %}
+      <section class="card shadow-sm">
+        <h2 style="color: #059669; display: flex; align-items: center; gap: 8px;">
+          ⚖️ Fundamentação Legal
+        </h2>
+        {% if out.fundamentos_normas %}
+          <ul style="list-style: none; padding: 0; margin-top: 10px;">
+            {% for f in out.fundamentos_normas %}
+              <li style="padding: 8px 0; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 0.9rem;">
+                🏛️ {{ f }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">Nenhuma norma específica detectada.</p>
+        {% endif %}
 
-            {% if out.queries_juris %}
-                <div style="background: #f5f3ff; padding: 12px; border-radius: 8px; border: 1px solid #ddd6fe;">
-                    <strong style="color: #5b21b6; font-size: 0.9rem;">Sugestões para STJ/STF:</strong>
-                    <ul style="margin-top: 8px; padding-left: 15px; font-size: 0.85rem; color: #4c1d95;">
-                        {% for q in out.queries_juris %}
-                            <li style="margin-bottom: 6px;"><code>{{ q }}</code></li>
-                        {% endfor %}
-                    </ul>
-                </div>
-            {% endif %}
-        </section>
+        {% if out.fundamentos_juris %}
+          <div style="margin-top:12px; background:#ecfdf5; border:1px solid #bbf7d0; padding:12px; border-radius:8px;">
+            <strong style="color:#047857;">📚 Referências de jurisprudência</strong>
+            <ul style="margin-top: 8px; padding-left: 18px; font-size: 0.9rem; color:#065f46;">
+              {% for j in out.fundamentos_juris %}
+                <li style="margin-bottom: 6px;">{{ j }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="card shadow-sm">
+        <h2 style="color: #7c3aed; display: flex; align-items: center; gap: 8px;">
+          🔎 Estratégia de Pesquisa
+        </h2>
+
+        {% if out.keywords %}
+          <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; margin-top: 10px;">
+            {% for k in out.keywords %}
+              <span style="background: #f3f4f6; color: #4b5563; padding: 4px 10px; border-radius: 99px; font-size: 0.8rem; border: 1px solid #e5e7eb;">
+                #{{ k }}
+              </span>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% if out.pergunta %}
+          <div style="background:#f5f3ff; padding: 12px; border-radius: 8px; border: 1px solid #ddd6fe; margin-bottom: 12px;">
+            <strong style="color:#5b21b6; font-size: 0.9rem;">Pergunta-guia</strong>
+            <p style="margin: 6px 0 0 0; font-size: 0.9rem; color:#4c1d95; line-height:1.5;">
+              {{ out.pergunta }}
+            </p>
+          </div>
+        {% endif %}
+
+        {% if out.queries_juris %}
+          <div style="background: #f5f3ff; padding: 12px; border-radius: 8px; border: 1px solid #ddd6fe;">
+            <strong style="color: #5b21b6; font-size: 0.9rem;">Sugestões de pesquisa</strong>
+            <ul style="margin-top: 8px; padding-left: 18px; font-size: 0.85rem; color: #4c1d95;">
+              {% for q in out.queries_juris %}
+                <li style="margin-bottom: 6px;"><code>{{ q }}</code></li>
+              {% endfor %}
+            </ul>
+          </div>
+        {% endif %}
+      </section>
     </div>
 
+    <!-- =======================
+         GRID 2: CHECKLIST + GLOSSÁRIO
+         ======================= -->
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
-        
-        <section class="card shadow-sm">
-            <h2 style="color: #ea580c; display: flex; align-items: center; gap: 8px;">
-                ✅ Checklist de Verificação
-            </h2>
-            {% if out.checklist %}
-                <ul style="padding-left: 20px; color: #334155; line-height: 1.6; margin-top: 10px;">
-                    {% for item in out.checklist %}
-                        <li style="margin-bottom: 8px; font-size: 0.95rem;">{{ item }}</li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p class="muted" style="margin-top:10px;">Aguardando processamento de termos específicos.</p>
-            {% endif %}
-        </section>
 
-        <section class="card shadow-sm">
-            <h2 style="color: #0891b2; display: flex; align-items: center; gap: 8px;">
-                📖 Glossário Técnico
-            </h2>
-            {% if out.glossario %}
-                <ul style="list-style: none; padding: 0; margin-top: 10px;">
-                    {% for g in out.glossario %}
-                        <li style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9;">
-                            <strong style="color: #0e7490; font-size: 0.95rem;">{{ g.termo }}</strong><br>
-                            <span style="font-size: 0.9rem; color: #64748b; line-height: 1.4;">{{ g.definicao }}</span>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p class="muted" style="margin-top:10px;">Nenhum termo jurídico complexo identificado nesta peça.</p>
-            {% endif %}
-        </section>
+      <section class="card shadow-sm">
+        <h2 style="color: #ea580c; display: flex; align-items: center; gap: 8px;">
+          ✅ Checklist de Verificação
+        </h2>
+        {% if out.checklist %}
+          <ul style="padding-left: 20px; color: #334155; line-height: 1.6; margin-top: 10px;">
+            {% for item in out.checklist %}
+              <li style="margin-bottom: 8px; font-size: 0.95rem;">{{ item }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted" style="margin-top:10px;">Aguardando processamento de termos específicos.</p>
+        {% endif %}
+      </section>
+
+      <section class="card shadow-sm">
+        <h2 style="color: #0891b2; display: flex; align-items: center; gap: 8px;">
+          📖 Glossário Técnico
+        </h2>
+
+        {# Ajuste: seu backend agora manda "termos_importantes" #}
+        {% set gloss = out.termos_importantes or [] %}
+
+        {% if gloss %}
+          <ul style="list-style: none; padding: 0; margin-top: 10px;">
+            {% for g in gloss %}
+              <li style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f1f5f9;">
+                <strong style="color: #0e7490; font-size: 0.95rem;">{{ g.termo }}</strong><br>
+                <span style="font-size: 0.9rem; color: #64748b; line-height: 1.4;">{{ g.traducao }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+
+          <p class="muted" style="margin-top: 10px; font-size: 0.85rem;">
+            Fonte do glossário: <a href="{{ out.glossario_source }}" target="_blank">{{ out.glossario_source }}</a>
+          </p>
+        {% else %}
+          <p class="muted" style="margin-top:10px;">Nenhum termo jurídico complexo identificado nesta peça.</p>
+        {% endif %}
+      </section>
 
     </div>
 
+    <!-- =======================
+         ARTIGOS RECOMENDADOS (novo)
+         ======================= -->
+    {% if out.artigos_recomendados %}
+      <section class="card shadow-sm" style="margin-top: 20px; border-left: 4px solid #a855f7;">
+        <h2 style="color:#6d28d9; display:flex; align-items:center; gap:8px;">
+          🧩 Artigos / Doutrina recomendados
+        </h2>
+        <p class="muted" style="margin-top: 6px;">
+          Indicações filtradas pelo tema, área e códigos detectados no texto.
+        </p>
+
+        <div style="display:grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px;">
+          {% for a in out.artigos_recomendados %}
+            <div style="background:#faf5ff; border:1px solid #e9d5ff; padding:12px; border-radius:8px;">
+              <div style="font-weight:700; color:#4c1d95; line-height:1.35;">
+                {{ a.titulo }}
+              </div>
+              <div style="margin-top:6px; color:#5b21b6; font-size:0.9rem;">
+                <strong>Autor(es):</strong> {{ a.autores or "—" }}
+                {% if a.ano %} • <strong>Ano:</strong> {{ a.ano }}{% endif %}
+              </div>
+              <div style="margin-top:6px; color:#6b7280; font-size:0.9rem; line-height:1.45;">
+                <strong>De onde é:</strong> {{ a.onde or "—" }}
+              </div>
+              <div style="margin-top:6px; color:#374151; font-size:0.9rem;">
+                <strong>Código relacionado:</strong>
+                {% if a.codigo_relacionado %}
+                  {{ a.codigo_relacionado|join(", ") }}
+                {% else %}
+                  —
+                {% endif %}
+              </div>
+
+              {% if a.url %}
+                <div style="margin-top:8px;">
+                  <a class="btn secondary" href="{{ a.url }}" target="_blank" style="text-decoration:none; font-size:0.85rem;">
+                    Abrir referência ↗
+                  </a>
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+
+    <!-- =======================
+         BIBLIOTECA (sem mexer)
+         ======================= -->
     {% if out.sugestoes %}
-    <section class="card shadow-sm" style="margin-top: 20px; background: #f8fafc;">
+      <section class="card shadow-sm" style="margin-top: 20px; background: #f8fafc;">
         <h3 style="font-size: 1rem; color: #475569; margin-bottom: 12px;">🔗 Atalhos da Biblioteca</h3>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            {% for item in out.sugestoes %}
-                <a href="{{ item.url }}" target="_blank" style="text-decoration: none; font-size: 0.85rem; color: #2563eb; background: white; padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
-                    {{ item.titulo }} ↗
-                </a>
-            {% endfor %}
+          {% for item in out.sugestoes %}
+            <a href="{{ item.url }}" target="_blank"
+               style="text-decoration: none; font-size: 0.85rem; color: #2563eb; background: white; padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
+              {{ item.titulo }} ↗
+            </a>
+          {% endfor %}
         </div>
-    </section>
+      </section>
     {% endif %}
 
   </div>
@@ -172,16 +384,53 @@
 
     function copyReport(){
       const tema = {{ (out.tema_principal or "Análise")|tojson }};
+      const area = {{ (out.area_sugerida or "")|tojson }};
+      const codigos = {{ (out.codigos_relacionados or [])|tojson }};
       const resumo = {{ (out.resumo or "")|tojson }};
       const normas = {{ (out.fundamentos_normas or [])|tojson }};
+      const juris = {{ (out.fundamentos_juris or [])|tojson }};
       const checklist = {{ (out.checklist or [])|tojson }};
-      
-      const texto = `LUMEN JURÍDICO - RELATÓRIO TÉCNICO\n` +
-                    `====================================\n\n` +
-                    `TEMA PRINCIPAL: ${tema}\n\n` +
-                    `SÍNTESE DO CASO:\n${resumo}\n\n` +
-                    `FUNDAMENTAÇÃO LEGAL:\n${normas.map(n => '• '+n).join('\n')}\n\n` +
-                    `CHECKLIST PRÁTICO:\n${checklist.map(c => '[ ] '+c).join('\n')}`;
+      const meta = {{ (out.meta or {})|tojson }};
+      const sintaxe = {{ (out.sintaxe_caso or {})|tojson }};
+      const artigos = {{ (out.artigos_recomendados or [])|tojson }};
+
+      const metaTxt =
+        `Tipo: ${(meta.tipo_peca_detectado || '—')}\n` +
+        `Tribunal: ${(meta.tribunal || '—')}\n` +
+        `Classe: ${(meta.classe || '—')}\n` +
+        `Número: ${(meta.numero || meta.numero_cnj || '—')}\n` +
+        `Relator(a): ${(meta.relator || '—')}\n` +
+        `Datas: ${(meta.datas_mencionadas && meta.datas_mencionadas.length ? meta.datas_mencionadas.join(' • ') : '—')}`;
+
+      const sintaxeTxt =
+        (sintaxe && Object.keys(sintaxe).length)
+        ? (
+          `FATOS RELEVANTES:\n${(sintaxe.fatos_relevantes || '—')}\n\n` +
+          `CONTROVÉRSIA:\n${(sintaxe.controversia || '—')}\n\n` +
+          `RESULTADO/DISPOSITIVO:\n${(sintaxe.resultado_dispositivo || '—')}`
+        )
+        : "";
+
+      const artigosTxt =
+        (artigos && artigos.length)
+          ? artigos.map(a =>
+              `• ${a.titulo}\n  - Autor(es): ${a.autores || '—'}\n  - Ano: ${a.ano || '—'}\n  - De onde é: ${a.onde || '—'}\n  - Código: ${(a.codigo_relacionado && a.codigo_relacionado.length ? a.codigo_relacionado.join(', ') : '—')}`
+            ).join("\n\n")
+          : "—";
+
+      const texto =
+        `LUMEN JURÍDICO - RELATÓRIO TÉCNICO\n` +
+        `====================================\n\n` +
+        `TEMA PRINCIPAL: ${tema}\n` +
+        (area ? `ÁREA SUGERIDA: ${area}\n` : "") +
+        (codigos && codigos.length ? `CÓDIGOS RELACIONADOS: ${codigos.join(', ')}\n` : "") +
+        `\nDADOS DO CASO:\n${metaTxt}\n\n` +
+        `SÍNTESE DO CASO:\n${resumo}\n\n` +
+        (sintaxeTxt ? `SINTAXE DO CASO:\n${sintaxeTxt}\n\n` : "") +
+        `FUNDAMENTAÇÃO LEGAL:\n${normas.map(n => '• ' + n).join('\n') || '—'}\n\n` +
+        `JURISPRUDÊNCIA / REFERÊNCIAS:\n${juris.map(j => '• ' + j).join('\n') || '—'}\n\n` +
+        `CHECKLIST PRÁTICO:\n${checklist.map(c => '[ ] ' + c).join('\n') || '—'}\n\n` +
+        `ARTIGOS / DOUTRINA RECOMENDADOS:\n${artigosTxt}`;
 
       copyTextToClipboard(texto).then(() => alert("Relatório completo copiado! 📋"));
     }
@@ -192,6 +441,8 @@
       .hero, .actions, .btn, .nav, footer { display: none !important; }
       body { background: white; padding: 0; }
       .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
+      a { color: #111827 !important; text-decoration: none !important; }
+      code { background: transparent !important; }
     }
     .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .btn:hover { opacity: 0.9; transform: translateY(-1px); }
