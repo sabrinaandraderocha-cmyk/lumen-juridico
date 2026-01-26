@@ -69,7 +69,8 @@ LIBRARY_LINKS = [
 STOPWORDS_PT = {
     "a","o","os","as","um","uma","uns","umas","de","do","da","dos","das","em","no","na","nos","nas",
     "por","para","com","sem","sobre","entre","e","ou","que","se","ao","aos","à","às","como",
-    "art","artigo","lei","decreto","tribunal","stj","stf","processo","recurso","ementa","autos"
+    "art","artigo","lei","decreto","tribunal","stj","stf","processo","recurso","ementa","autos",
+    "vistos", "vossa", "excelência", "parte", "autos", "folhas"
 }
 
 # =========================
@@ -83,16 +84,15 @@ def normalize(text: str) -> str:
     return text
 
 def smart_summary(text: str) -> str:
-    """Melhoria: Busca gatilhos específicos para sintetizar o caso."""
     normalized = normalize(text)
     lower_text = normalized.lower()
     
-    # 1. Tentar Ementa
+    # 1. Ementa
     ementa_match = re.search(r"\bementa\b[:\s]*(.*?)(?:\bac[oó]rd[aã]o\b|\brelat[oó]rio\b|$)", lower_text, re.DOTALL)
     if ementa_match and len(ementa_match.group(1)) > 50:
         return normalized[ementa_match.start(1):ementa_match.end(1)].strip()[:800] + "..."
 
-    # 2. Frases de introdução da tese
+    # 2. Gatilhos de tese
     intro_patterns = [
         r"(trata-se de\s+.*?\.)",
         r"(cuida-se de\s+.*?\.)",
@@ -108,26 +108,22 @@ def smart_summary(text: str) -> str:
     return normalized[:600] + "..."
 
 def extract_articles_with_context(text: str) -> list[str]:
-    """Melhoria: Identifica o código/lei referente ao artigo através do contexto."""
     law_map = {
         "cc": "Código Civil", "civil": "Código Civil", "10.406": "Código Civil",
         "cpc": "CPC", "processo civil": "CPC", "13.105": "CPC",
-        "cp": "Código Penal", "penal": "Código Penal",
+        "cp": "Código Penal", "penal": "Código Penal", "2.848": "Código Penal",
         "cpp": "CPP", "processo penal": "CPP",
-        "cdc": "CDC", "consumidor": "CDC",
-        "cf": "Constituição Federal", "88": "Constituição Federal",
+        "cdc": "CDC", "consumidor": "CDC", "8.078": "CDC",
+        "cf": "Constituição Federal", "constituição": "Constituição Federal",
         "clt": "CLT", "trabalho": "CLT"
     }
 
     found_citations = []
-    # Busca Art. 123
     article_pattern = re.compile(r"\b(?:art\.?|artigo)\s*(\d+[º°]?[-\w]*)", re.IGNORECASE)
     
     for match in article_pattern.finditer(text):
         article_num = match.group(1)
         start_pos = match.start()
-        
-        # Janela de contexto (150 chars antes/depois) para identificar a lei
         window = text[max(0, start_pos - 150):min(len(text), start_pos + 150)].lower()
         
         detected_law = "Lei não identificada"
@@ -143,9 +139,8 @@ def extract_articles_with_context(text: str) -> list[str]:
     return found_citations[:15]
 
 def build_smart_search_queries(keywords, citations):
-    """Melhoria: Gera queries de pesquisa muito mais assertivas."""
     queries = []
-    main_keyword = keywords[0] if keywords else ""
+    main_keyword = keywords[0] if keywords else "Jurisprudência"
     best_citation = next((c for c in citations if "não identificada" not in c), None)
     
     if best_citation:
@@ -155,9 +150,14 @@ def build_smart_search_queries(keywords, citations):
     
     if len(keywords) >= 3:
         topic = " ".join(keywords[:3])
-        queries.append(f"Tese jurídica {topic}")
+        queries.append(f"Tese jurídica {topic} recente")
         
     return queries[:4]
+
+def pick_keywords(text: str, k=6):
+    clean = re.sub(r'[^\w\s]', '', text.lower())
+    tokens = [t for t in clean.split() if t not in STOPWORDS_PT and len(t) > 3 and not t.isdigit()]
+    return [w for w, _ in Counter(tokens).most_common(k)]
 
 def build_output(text: str):
     text = normalize(text)
@@ -169,35 +169,34 @@ def build_output(text: str):
     juris_refs = list(set(re.findall(r"(Súmula\s*\d+|Tema\s*\d+|REsp\s*[\d\.]+)", text, re.I)))
 
     return {
-        "tema_principal": f"{', '.join(keywords[:3]).title()}" if keywords else "Análise",
+        "tema_principal": f"{', '.join(keywords[:3]).title()}" if keywords else "Análise Jurídica",
         "resumo": resumo,
         "fundamentos_normas": fundamentos,
         "fundamentos_juris": juris_refs,
         "keywords": keywords,
         "queries_juris": pesquisas,
         "sugestoes": [l for l in LIBRARY_LINKS if l['key'] in ['CF_HTML', 'CPC', 'CC']],
-        "alerta": "Texto curto" if len(text) < 500 else None
+        "alerta": "Texto excessivamente curto - análise limitada." if len(text) < 500 else None
     }
-
-def pick_keywords(text: str, k=6):
-    clean = re.sub(r'[^\w\s]', '', text.lower())
-    tokens = [t for t in clean.split() if t not in STOPWORDS_PT and len(t) > 3 and not t.isdigit()]
-    return [w for w, _ in Counter(tokens).most_common(k)]
 
 # =========================
 # Helpers de Arquivo
 # =========================
 def get_text_from_upload(file):
     filename = secure_filename(file.filename)
+    if not filename: return ""
+    
     ext = os.path.splitext(filename)[1].lower()
     path = os.path.join(UPLOAD_DIR, filename)
     file.save(path)
     text = ""
     try:
         if ext == ".pdf":
-            text = "\n".join([p.extract_text() or "" for p in PdfReader(path).pages])
+            reader = PdfReader(path)
+            text = "\n".join([p.extract_text() or "" for p in reader.pages])
         elif ext == ".docx":
-            text = "\n".join([p.text for p in Document(path).paragraphs])
+            doc = Document(path)
+            text = "\n".join([p.text for p in doc.paragraphs])
         elif ext == ".txt":
             with open(path, 'r', encoding='utf-8', errors='ignore') as f:
                 text = f.read()
@@ -217,11 +216,13 @@ def home():
 def analisar():
     texto = request.form.get("texto", "").strip()
     arquivo = request.files.get("arquivo")
+    
     if arquivo and arquivo.filename:
-        texto = f"{texto}\n\n{get_text_from_upload(arquivo)}".strip()
+        texto_arquivo = get_text_from_upload(arquivo)
+        texto = f"{texto}\n\n{texto_arquivo}".strip()
     
     if not texto or len(texto) < 10:
-        flash("Documento inválido.")
+        flash("Documento ou texto insuficiente para análise.", "error")
         return redirect(url_for("home"))
 
     out = build_output(texto)
@@ -243,6 +244,14 @@ def historico():
     analises = Analise.query.order_by(Analise.data_criacao.desc()).paginate(page=page, per_page=10)
     return render_template("historico.html", paginacao=analises)
 
+@app.route("/excluir/<int:id>")
+def excluir(id):
+    analise = Analise.query.get_or_404(id)
+    db.session.delete(analise)
+    db.session.commit()
+    flash("Análise removida com sucesso.", "success")
+    return redirect(url_for("home"))
+
 @app.get("/biblioteca")
 def biblioteca():
     return render_template("biblioteca.html", links=LIBRARY_LINKS)
@@ -251,5 +260,11 @@ def biblioteca():
 def sobre():
     return render_template("sobre.html")
 
+@app.route("/glossario")
+def glossario():
+    # Redirecionamento preventivo para evitar BuildError no HTML antigo
+    return redirect("https://portal.stf.jus.br/jurisprudencia/glossario.asp")
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=False)
+    port = int(os.getenv("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=False)
