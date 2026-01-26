@@ -1,121 +1,168 @@
 {% extends "base.html" %}
+
 {% block title %}Analisar • Lumen Jurídico{% endblock %}
 
 {% block content %}
+
   <section class="hero">
     <div class="hero-badge">
       <span class="dot"></span>
-      Funciona localmente • sem IA externa
+      Funciona localmente • Histórico automático
     </div>
 
     <h1>Lumen Jurídico</h1>
 
     <p class="lead">
       Leitura clara de decisões judiciais — do texto bruto ao que importa.
+      Cole a decisão abaixo ou envie um arquivo para extrair teses e prazos.
     </p>
 
-    <div class="card" style="margin-top:14px;">
-      <h2 style="margin:0 0 8px 0;">O que você recebe na análise</h2>
-
-      <ul style="margin:8px 0 0; padding-left:18px;">
-        <li><strong>Principal tema do texto</strong> — o assunto central da decisão</li>
-        <li><strong>Normas / artigos citados</strong> — base legal identificada</li>
-        <li><strong>Pra pesquisar</strong> — pergunta jurídica, palavras-chave e acesso à jurisprudência</li>
-        <li><strong>Checklist prático</strong> — apoio para estudo, prova e prática</li>
-        <li><strong>Termos jurídicos importantes</strong> — tradução em linguagem simples</li>
-      </ul>
-
-      <p class="muted" style="margin-top:10px;">
-        Dica: a análise funciona muito bem apenas com a <strong>ementa</strong>.
-        Com voto ou acórdão completo, o resultado tende a ficar ainda mais preciso.
-      </p>
+    <div class="card bg-light" style="margin-top:20px; border-left: 4px solid var(--accent, #2563eb);">
+      <h3 style="margin:0 0 10px 0; font-size: 1.1rem;">O que a IA analisa:</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95em;">
+        <div>✅ <strong>Tema Central:</strong> O assunto principal.</div>
+        <div>✅ <strong>Legislação:</strong> Artigos e leis citadas.</div>
+        <div>✅ <strong>Jurisprudência:</strong> Súmulas e Temas.</div>
+        <div>✅ <strong>Checklist:</strong> Pontos de atenção práticos.</div>
+      </div>
     </div>
   </section>
 
   <section class="card">
-    <form
-      method="post"
-      action="{{ url_for('analisar') }}"
-      enctype="multipart/form-data"
-    >
-      <label for="texto">Texto da decisão</label>
-      <textarea
-        id="texto"
-        name="texto"
-        rows="14"
-        placeholder="Cole aqui a ementa, o voto ou outro trecho da decisão judicial..."
-      ></textarea>
+    <form method="post" action="{{ url_for('analisar') }}" enctype="multipart/form-data">
+      
+      <div style="margin-bottom: 20px;">
+        <label for="texto" style="font-weight: bold; display: block; margin-bottom: 8px;">1. Cole o texto da decisão</label>
+        <textarea
+          id="texto"
+          name="texto"
+          rows="10"
+          class="form-control"
+          placeholder="Cole aqui a ementa, o voto ou o acórdão..."
+        ></textarea>
+      </div>
 
-      <label for="arquivo" style="margin-top:14px;">
-        Ou envie um arquivo (PDF ou Word)
-      </label>
-      <input
-        id="arquivo"
-        name="arquivo"
-        type="file"
-        accept=".pdf,.docx"
-      >
+      <div style="margin-bottom: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <label for="arquivo" style="font-weight: bold; display: block; margin-bottom: 8px;">2. Ou envie um arquivo (PDF / Word)</label>
+        <input
+          id="arquivo"
+          name="arquivo"
+          type="file"
+          accept=".pdf,.docx,.txt"
+          style="width: 100%; padding: 10px; background: #f9fafb; border: 1px dashed #ccc; border-radius: 6px;"
+        >
+      </div>
 
-      <!-- BOTÕES PADRONIZADOS -->
-      <div class="actions">
-        <button class="btn primary" type="submit">
-          Analisar decisão
+      <div class="actions" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 25px;">
+        <button class="btn primary" type="submit" style="flex: 1; min-width: 200px; justify-content: center;">
+          🔍 Analisar Agora
         </button>
 
         <a class="btn secondary" href="{{ url_for('biblioteca') }}">
-          Biblioteca
+          📚 Biblioteca
         </a>
 
-        <a class="btn secondary" href="{{ url_for('glossario') }}">
-          Glossário (STF)
+        <a class="btn secondary" href="{{ url_for('glossario') }}" target="_blank">
+          📖 Glossário STF
         </a>
       </div>
 
-      <p class="muted" style="margin-top:12px;">
-        Privacidade: processamento local. Seus textos não são enviados para serviços de IA.
+      <p class="muted" style="margin-top:15px; font-size: 0.85em; text-align: center;">
+        Privacidade: Processamento local. Seus arquivos não são enviados para terceiros.
       </p>
     </form>
   </section>
 
+  {% if historico %}
+  <section style="margin-top: 40px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <h2 style="font-size: 1.5rem; margin: 0;">Histórico Recente</h2>
+      <a href="{{ url_for('historico') }}" style="font-size: 0.9em; text-decoration: none; color: var(--accent, #2563eb);">Ver tudo &rarr;</a>
+    </div>
+
+    <div class="grid-historico">
+      {% for item in historico %}
+      <a href="{{ url_for('resultado', id=item.id) }}" class="card card-historico" style="text-decoration: none; color: inherit; display: block; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <strong style="color: #1e293b;">{{ item.titulo_resumo }}</strong>
+            <div class="muted" style="font-size: 0.85em; margin-top: 4px;">{{ item.data_criacao.strftime('%d/%m às %H:%M') }}</div>
+          </div>
+          <span style="background: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-size: 0.8em;">Ver &rarr;</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
   <style>
-    /* Ajustes locais do hero (não quebra o CSS global) */
     .hero {
-      padding: 26px 0 10px;
+      padding: 40px 0 20px;
+      text-align: center;
     }
 
     .hero h1 {
-      font-size: 34px;
-      line-height: 1.15;
-      letter-spacing: -0.02em;
-      margin: 10px 0 0 0;
+      font-size: 2.5rem;
+      line-height: 1.2;
+      margin: 15px 0;
+      color: #1e293b;
     }
 
     .hero .lead {
-      font-size: 16px;
-      margin-top: 10px;
+      font-size: 1.1rem;
+      color: #64748b;
+      margin: 0 auto 30px;
+      max-width: 700px;
       line-height: 1.6;
-      max-width: 760px;
     }
 
-    .hero-badge{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:#f9fafb;
-      font-size:12px;
-      color:#334155;
-      width: fit-content;
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 99px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid #dbeafe;
     }
 
-    .hero-badge .dot{
-      width:8px;
-      height:8px;
-      border-radius:999px;
-      background: var(--accent);
-      display:inline-block;
+    .hero-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3b82f6;
+      display: inline-block;
+    }
+
+    /* Ajuste do formulário */
+    textarea.form-control {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 1rem;
+      resize: vertical;
+      transition: border-color 0.2s;
+    }
+    
+    textarea.form-control:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* Card de Histórico Hover */
+    .card-historico:hover {
+      border-color: #3b82f6;
+      transform: translateY(-2px);
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     }
   </style>
+
 {% endblock %}
