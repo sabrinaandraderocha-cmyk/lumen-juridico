@@ -8,10 +8,11 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
+from jinja2 import TemplateNotFound
 
-# Bibliotecas de leitura de arquivos
+# Leitura de arquivos
 from pypdf import PdfReader
-from docx import Document as DocxDocument
+from docx import Document
 
 # Banco de dados
 from flask_sqlalchemy import SQLAlchemy
@@ -26,17 +27,17 @@ INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
 UPLOAD_DIR = os.path.join(INSTANCE_DIR, "uploads")
 DB_PATH = os.path.join(INSTANCE_DIR, "lumen.db")
 
-# Garante que as pastas existam para o Render não dar erro de permissão
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(INSTANCE_DIR, exist_ok=True)
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "dev-secret-lumen-2026")
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024 
+app.secret_key = os.getenv("SECRET_KEY", "dev-change-me")
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+ALLOWED_EXTS = {".pdf", ".docx", ".txt"}
 
 # =========================
 # Modelo do Banco de Dados
@@ -47,121 +48,425 @@ class Analise(db.Model):
     titulo_resumo = db.Column(db.String(255))
     texto_original = db.Column(db.Text)
     tipo_peca = db.Column(db.String(100))
+    
+    def __repr__(self):
+        return f'<Analise {self.id}>'
 
+# Cria as tabelas ao iniciar
 with app.app_context():
     db.create_all()
 
 # =========================
-# Constantes e Biblioteca
+# Glossário e Biblioteca (ATUALIZADA COM CURSOS)
 # =========================
 GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
 
 LIBRARY_LINKS = [
-    {"categoria": "CONSTITUIÇÃO", "titulo": "Constituição Federal", "url": "http://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm"},
-    {"categoria": "CÓDIGO", "titulo": "Código Civil", "url": "http://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm"},
-    {"categoria": "CÓDIGO", "titulo": "Código de Processo Civil", "url": "http://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm"},
-    {"categoria": "CÓDIGO", "titulo": "Código Penal", "url": "http://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm"},
-    {"categoria": "CÓDIGO", "titulo": "Código de Processo Penal", "url": "http://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm"},
-    {"categoria": "TRABALHISTA", "titulo": "Consolidação das Leis do Trabalho", "url": "http://www.planalto.gov.br/ccivil_03/decreto-lei/del5452compilado.htm"},
-    {"categoria": "CONSUMIDOR", "titulo": "Código de Defesa do Consumidor", "url": "http://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm"},
-    {"categoria": "ESTATUTO", "titulo": "Estatuto da Criança e Adolescente", "url": "http://www.planalto.gov.br/ccivil_03/leis/l8069.htm"},
-    {"categoria": "PENAL ESPECIAL", "titulo": "Lei Maria da Penha", "url": "http://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm"},
-    {"categoria": "TRIBUTÁRIO", "titulo": "Código Tributário Nacional", "url": "http://www.planalto.gov.br/ccivil_03/leis/l5172compilado.htm"}
+    # --- Legislação Fundamental ---
+    {"key": "CF_HTML", "titulo": "Constituição Federal (Compilado)", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", "tipo": "Constituição"},
+    {"key": "CC", "titulo": "Código Civil", "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm", "tipo": "Código"},
+    {"key": "CPC", "titulo": "Código de Processo Civil (CPC)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm", "tipo": "Código"},
+    {"key": "CP", "titulo": "Código Penal (CP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del2848compilado.htm", "tipo": "Código"},
+    {"key": "CPP", "titulo": "Código de Processo Penal (CPP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm", "tipo": "Código"},
+    {"key": "CLT", "titulo": "Consolidação das Leis do Trabalho (CLT)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm", "tipo": "Trabalhista"},
+    {"key": "CDC", "titulo": "Código de Defesa do Consumidor", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm", "tipo": "Consumidor"},
+    
+    # --- Cursos Gratuitos (NOVO) ---
+    {"key": "CURSO_STF", "titulo": "Cursos EAD – Supremo Tribunal Federal", "url": "https://ead.stf.jus.br/course/index.php?categoryid=3", "tipo": "🎓 Curso Gratuito"},
+    {"key": "CURSO_ESA", "titulo": "ESA OAB – Cursos Gratuitos", "url": "https://esa.oab.org.br/home/ver-cursos?filter_categories_id%5B%5D=24", "tipo": "🎓 Curso Gratuito"},
+    {"key": "CURSO_GOV", "titulo": "Escola Virtual Gov (EV.G) – Direito", "url": "https://www.escolavirtual.gov.br/catalogo", "tipo": "🎓 Curso Gratuito"},
+
+    # --- Legislação Específica ---
+    {"key": "CTN", "titulo": "Código Tributário Nacional", "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm", "tipo": "Tributário"},
+    {"key": "LIC", "titulo": "Lei de Licitações (14.133/21)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm", "tipo": "Administrativo"},
+    {"key": "LIA", "titulo": "Lei de Improbidade Administrativa", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm", "tipo": "Administrativo"},
+    {"key": "ECA", "titulo": "Estatuto da Criança e Adolescente", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm", "tipo": "Estatuto"},
+    {"key": "MPENHA", "titulo": "Lei Maria da Penha", "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm", "tipo": "Penal Especial"},
+    
+    # --- Ferramentas ---
+    {"key": "STF_GLOSS", "titulo": "Glossário Jurídico STF", "url": GLOSSARY_URL, "tipo": "Ferramenta"},
 ]
 
-GLOSSARY_DICT = {
-    "acórdão": "Decisão final proferida por um tribunal (grupo de juízes).",
-    "prescrição": "Perda do direito de punir ou cobrar algo pelo passar do tempo.",
-    "ementa": "Resumo oficial de uma decisão judicial.",
-    "tempestivo": "Ato realizado dentro do prazo legal.",
-    "preclusão": "Perda do direito de agir no processo por perda de prazo.",
+STOPWORDS_PT = {
+    "a","o","os","as","um","uma","uns","umas","de","do","da","dos","das","em","no","na","nos","nas",
+    "por","para","com","sem","sobre","entre","e","ou","que","se","ao","aos","à","às","como","mais",
+    "menos","já","não","sim","ser","foi","é","são","era","sendo","ter","tem","têm","haver","há",
+    "art","artigo","lei","decreto","resolução","acórdão","relator","relatora","turma","câmara",
+    "tribunal","stj","stf","tj","trf","ministro","ministra","voto","decisão","processo","recurso",
+    "ementa","embargos","embargo","autos","vistos","juiz","juiza","excelencia", "vossa", "senhoria"
+}
+
+TERM_TRANSLATIONS = {
+    "habeas corpus": "pedido para proteger a liberdade (contra prisão ilegal/abuso).",
+    "periculum libertatis": "risco ligado à liberdade do acusado (perigo concreto de solto).",
+    "fumus boni iuris": "aparência de bom direito (indícios de que o pedido faz sentido).",
+    "periculum in mora": "risco da demora (se esperar, o direito pode se perder).",
+    "ratio decidendi": "motivo central que sustentou a decisão (fundamento decisivo).",
+    "obiter dictum": "comentário do julgador que não foi essencial para decidir.",
+    "distinguishing": "diferenciar o caso do precedente por fatos distintos.",
+    "overruling": "superação de entendimento anterior (mudança de jurisprudência).",
+    "nulidade": "ato/processo inválido por violação de regra/garantia.",
+    "ônus da prova": "quem tem o dever de provar determinado fato.",
+    "tutela de urgência": "decisão rápida e provisória para evitar dano imediato.",
+    "prisão preventiva": "prisão antes da sentença para proteger o processo/sociedade.",
+    "trânsito em julgado": "quando não cabe mais recurso da decisão.",
+    "in dubio pro reo": "na dúvida, decide-se a favor do réu.",
+    "ex tunc": "efeito retroativo (vale desde o início).",
+    "ex nunc": "efeito não retroativo (vale daqui para frente)."
 }
 
 # =========================
-# Funções de Inteligência
+# Funções de Texto (NLP e Regex)
 # =========================
+def normalize(text: str) -> str:
+    text = (text or "").strip()
+    text = re.sub(r"\r\n?", "\n", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    return text
 
-def ler_arquivo(caminho):
-    ext = os.path.splitext(caminho)[1].lower()
-    conteudo = ""
-    try:
-        if ext == ".pdf":
-            reader = PdfReader(caminho)
-            for page in reader.pages:
-                conteudo += page.extract_text() or ""
-        elif ext == ".docx":
-            doc = DocxDocument(caminho)
-            conteudo = "\n".join([p.text for p in doc.paragraphs])
-    except: pass
-    return conteudo
+def split_sentences(text: str):
+    parts = re.split(r"(?<=[\.\?!])\s+", (text or "").strip())
+    return [p.strip() for p in parts if p.strip()]
 
+def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
+    lower = text.lower()
+    start_idx = None
+    for pat in start_patterns:
+        m = re.search(pat, lower, flags=re.I | re.M)
+        if m:
+            start_idx = m.start()
+            break
+    if start_idx is None:
+        return ""
+
+    tail = text[start_idx:]
+    tail_lower = lower[start_idx:]
+
+    stop_idx = None
+    for sp in stop_patterns:
+        m = re.search(sp, tail_lower, flags=re.I | re.M)
+        if m and m.start() > 0:
+            stop_idx = m.start()
+            break
+
+    block = tail[:stop_idx] if stop_idx else tail
+    return block.strip()[:max_chars].strip()
+
+def pick_keywords(text: str, k=8):
+    # Limpa pontuação para contar palavras melhor
+    clean_text = re.sub(r'[^\w\s]', '', text.lower())
+    tokens = [t for t in clean_text.split() if t not in STOPWORDS_PT and len(t) > 3 and not t.isdigit()]
+    if not tokens: return []
+    counts = Counter(tokens)
+    return [w for w, _ in counts.most_common(k)]
+
+def extract_legal_citations(text: str, limit=14):
+    t = text or ""
+    patterns = [
+        r"Lei\s+n[º°]?\s*[\d\.]+(?:/\d{2,4})?",
+        r"art\.\s*\d+[º°]?",
+        r"Súmula\s*(?:Vinculante)?\s*n[º°]?\s*\d+",
+        r"Constituição\s+Federal",
+        r"Código\s+(?:Civil|Penal|Processo\s+Civil|Processo\s+Penal|Defesa\s+do\s+Consumidor|Tributário)",
+        r"CF/88", r"CPC", r"CPP", r"CP", r"CLT", r"CDC", r"CTN",
+        r"Decreto\s+n[º°]?\s*[\d\.]+"
+    ]
+    citations = []
+    for pat in patterns:
+        citations.extend(re.findall(pat, t, flags=re.IGNORECASE))
+    
+    seen = set()
+    unique = []
+    for c in citations:
+        clean = normalize(c)
+        # Limpeza extra para "Lei n 123" ficar bonito
+        clean = re.sub(r"\s+", " ", clean)
+        if clean.lower() not in seen:
+            seen.add(clean.lower())
+            unique.append(clean)
+    return unique[:limit]
+
+def extract_jurisprudencia_refs(text: str, limit=12):
+    patterns = [
+        r"\bREsp\s*\d[\d\.\-\/]*\b",
+        r"\bAgRg\b|\bAgInt\b|\bEDcl\b|\bEmbargos?\b",
+        r"\bHC\s*\d[\d\.\-\/]*\b",
+        r"\bRHC\s*\d[\d\.\-\/]*\b",
+        r"\bADI\s*\d[\d\.\-\/]*\b|\bADPF\s*\d[\d\.\-\/]*\b|\bADC\s*\d[\d\.\-\/]*\b",
+        r"\bTema\s*\d+\b",
+        r"\bS[úu]mula\s*\d+\b"
+    ]
+    found = []
+    seen = set()
+    for pat in patterns:
+        for m in re.finditer(pat, text or "", flags=re.I):
+            s = re.sub(r"\s+", " ", m.group(0).strip())
+            k = s.lower()
+            if s and k not in seen:
+                found.append(s)
+                seen.add(k)
+            if len(found) >= limit: return found
+    return found
+
+def analyze_quality(text: str):
+    t = (text or "").strip()
+    warnings = []
+    if len(t) < 450:
+        warnings.append("Texto muito curto: a análise pode ficar genérica.")
+    return " ".join(warnings).strip()
+
+def pick_best_question(text: str, fallback_base: str) -> str:
+    candidates = [s for s in split_sentences(text) if s.endswith("?") and 15 <= len(s) <= 240]
+    if candidates: return candidates[0].strip()
+    return "Qual é a controvérsia jurídica principal deste caso?"
+
+def extract_terms_translation(text: str, max_items: int = 10) -> list[dict]:
+    t = (text or "").lower()
+    hits = []
+    seen = set()
+    for term, tr in TERM_TRANSLATIONS.items():
+        if term in t and term not in seen:
+            seen.add(term)
+            hits.append({"termo": term, "traducao": tr})
+            if len(hits) >= max_items: break
+    return hits
+
+def build_search_queries(pergunta: str, tese: str, keywords: list[str], max_items: int = 4) -> list[str]:
+    kws = [k for k in (keywords or []) if k and len(k) >= 4][:3]
+    out = []
+    
+    # Query 1: Palavras-chave
+    if kws: out.append(" AND ".join([f'"{k}"' for k in kws]))
+    
+    # Query 2: Pergunta + Tribunal (se detectado)
+    if "stj" in tese.lower():
+        out.append(f"site:stj.jus.br {kws[0] if kws else ''}")
+    elif "stf" in tese.lower():
+        out.append(f"site:stf.jus.br {kws[0] if kws else ''}")
+        
+    return out[:max_items]
+
+def build_action_checklist(text: str) -> list[str]:
+    low = (text or "").lower()
+    items = []
+    
+    # Checklist Dinâmico
+    if "prisão" in low or "hc" in low or "liberdade" in low:
+        items.extend([
+            "Verificar se há fundamentação concreta (não genérica).",
+            "Checar contemporaneidade dos fatos (os fatos são recentes?).",
+            "Analisar excesso de prazo na prisão."
+        ])
+    if "dano moral" in low or "indeniza" in low:
+        items.extend([
+            "Verificar nexo causal (ligação entre conduta e dano).",
+            "Analisar critérios do 'quantum' (valor) indenizatório.",
+            "Checar excludentes de responsabilidade."
+        ])
+    if "recurso" in low or "apelação" in low or "agravo" in low:
+        items.extend([
+            "Verificar tempestividade (prazo do recurso).",
+            "Checar preparo (pagamento de custas).",
+            "Conferir prequestionamento (se matéria foi debatida antes)."
+        ])
+        
+    # Itens Padrão se não achar nada específico
+    if not items:
+        items = [
+            "Identificar a controvérsia central.",
+            "Listar fatos relevantes cronologicamente.",
+            "Verificar o dispositivo (conclusão) final.",
+            "Checar prazos processuais a partir da publicação."
+        ]
+    return items
+
+def suggest_library_links(text: str, max_items: int = 7):
+    t = (text or "").lower()
+    out = []
+    
+    # Prioriza links que batem com o texto
+    for link in LIBRARY_LINKS:
+        keywords = link['titulo'].split()
+        # Se 2 palavras do titulo baterem, sugere
+        matches = sum(1 for k in keywords if len(k) > 3 and k.lower() in t)
+        if matches >= 1:
+            out.append(link)
+    
+    # Se não achou nada específico, manda os gerais
+    if not out:
+        out = [l for l in LIBRARY_LINKS if l['key'] in ['CF_HTML', 'CPC', 'STF_GLOSS']]
+    
+    # Adiciona sempre um curso se for pertinente (Ex: se falar de OAB)
+    if "oab" in t or "exame" in t:
+        out.append([l for l in LIBRARY_LINKS if l['key'] == 'CURSO_ESA'][0])
+    
+    # Remove duplicatas preservando ordem
+    seen = set()
+    unique_out = []
+    for x in out:
+        if x['key'] not in seen:
+            unique_out.append(x)
+            seen.add(x['key'])
+            
+    return unique_out[:max_items]
+
+# =========================
+# Lógica Principal
+# =========================
 def build_output(text: str):
-    keywords = [w for w, _ in Counter(re.findall(r'\w{6,}', text.lower())).most_common(5)]
-    found_glossary = []
-    for term, definition in GLOSSARY_DICT.items():
-        if term in text.lower():
-            found_glossary.append({"termo": term.title(), "definicao": definition})
+    text = normalize(text)
+
+    # Tenta extrair a ementa (bloco resumo no topo)
+    ementa = extract_block(text, [r"\bementa\b"], [r"\bac[oó]rd[aã]o\b", r"\brelat[oó]rio\b"], 1700) or text[:900]
+    
+    # Identifica Palavras-chave
+    base_for_keywords = ementa or text[:1500]
+    keywords = pick_keywords(base_for_keywords, k=8)
+
+    # Identifica Pergunta e Tese
+    pergunta = pick_best_question(text, base_for_keywords)
+    
+    # Extrações Jurídicas
+    fundamentos_normas = extract_legal_citations(text, limit=14)
+    fundamentos_juris = extract_jurisprudencia_refs(text, limit=12)
+    
+    # Resumo inteligente
+    resumo = ementa[:600] + ("..." if len(ementa)>600 else "")
+
+    # Auxiliares
+    pesquisas = build_search_queries(pergunta, ementa, keywords)
+    checklist = build_action_checklist(text)
+    sugestoes = suggest_library_links(text)
+    termos_importantes = extract_terms_translation(text)
+    
+    # Título do Tema
+    tema_principal = f"Análise: {', '.join(keywords[:3]).title()}" if keywords else "Análise Jurídica"
 
     return {
-        "tema_principal": f"Análise de {top_words[0].title() if keywords else 'Documento'}",
-        "resumo": text[:800] + "...",
+        "tema_principal": tema_principal,
+        "pergunta": pergunta,
+        "fundamentos_normas": fundamentos_normas,
+        "fundamentos_juris": fundamentos_juris,
         "keywords": keywords,
-        "glossario": found_glossary or [{"termo": "Processo", "definicao": "Atos judiciais"}]
+        "queries_juris": pesquisas,
+        "checklist": checklist,
+        "resumo": resumo,
+        "alerta": analyze_quality(text),
+        "sugestoes": sugestoes,
+        "termos_importantes": termos_importantes,
+        "glossario_source": GLOSSARY_URL,
     }
 
 # =========================
-# Rotas (Corrigidas)
+# Upload Helpers
 # =========================
+def allowed_file(filename):
+    return os.path.splitext((filename or "").lower())[1] in ALLOWED_EXTS
 
+def get_text_from_upload(file):
+    filename = secure_filename(file.filename or "")
+    if not filename: return ""
+    
+    ext = os.path.splitext(filename)[1].lower()
+    path = os.path.join(UPLOAD_DIR, f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}")
+    file.save(path)
+
+    text = ""
+    try:
+        if ext == ".pdf":
+            reader = PdfReader(path)
+            text = "\n".join([p.extract_text() or "" for p in reader.pages])
+        elif ext == ".docx":
+            doc = Document(path)
+            text = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
+        elif ext == ".txt":
+            with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+                text = f.read()
+    except Exception as e:
+        print(f"Erro ao ler arquivo: {e}")
+    finally:
+        try: os.remove(path)
+        except: pass
+    
+    return text
+
+# =========================
+# Rotas
+# =========================
 @app.route("/")
 def home():
-    recentes = Analise.query.order_by(Analise.id.desc()).limit(5).all()
-    return render_template("index.html", historico=recentes)
+    # Pega histórico do banco (últimos 5)
+    historico = Analise.query.order_by(Analise.data_criacao.desc()).limit(5).all()
+    return render_template("index.html", historico=historico)
 
 @app.route("/analisar", methods=["POST"])
 def analisar():
-    texto = request.form.get("texto", "").strip()
+    texto = (request.form.get("texto") or "").strip()
     arquivo = request.files.get("arquivo")
-    
+
     if arquivo and arquivo.filename:
-        filename = secure_filename(arquivo.filename)
-        path = os.path.join(UPLOAD_DIR, filename)
-        arquivo.save(path)
-        texto += "\n" + ler_arquivo(path)
-        os.remove(path)
+        if not allowed_file(arquivo.filename):
+            flash("Envie apenas PDF, DOCX ou TXT.", "error")
+            return redirect(url_for("home"))
+        extraido = get_text_from_upload(arquivo)
+        texto = f"{texto}\n\n{extraido}".strip()
 
     if not texto or len(texto) < 10:
-        flash("Texto insuficiente."); return redirect(url_for("home"))
+        flash("O documento está vazio ou muito curto.", "error")
+        return redirect(url_for("home"))
 
+    # Processa
     out = build_output(texto)
-    nova = Analise(titulo_resumo=out["tema_principal"], texto_original=texto)
-    db.session.add(nova); db.session.commit()
+    
+    # Salva no Banco de Dados
+    nova = Analise(
+        titulo_resumo=out["tema_principal"],
+        texto_original=texto,
+        tipo_peca="Documento Jurídico"
+    )
+    db.session.add(nova)
+    db.session.commit()
+
     return render_template("resultado.html", out=out, texto=texto, now=datetime.now(), analise_id=nova.id)
 
-@app.route("/biblioteca")
-def biblioteca():
-    return render_template("biblioteca.html", links=LIBRARY_LINKS)
+@app.route("/resultado/<int:id>")
+def resultado(id):
+    analise = Analise.query.get_or_404(id)
+    out = build_output(analise.texto_original)
+    return render_template("resultado.html", out=out, texto=analise.texto_original, now=datetime.now(), analise_id=analise.id)
 
 @app.route("/historico")
 def historico():
     page = request.args.get('page', 1, type=int)
-    analises = Analise.query.order_by(Analise.id.desc()).paginate(page=page, per_page=10)
+    analises = Analise.query.order_by(Analise.data_criacao.desc()).paginate(page=page, per_page=10)
     return render_template("historico.html", paginacao=analises)
-
-@app.route("/sobre")
-def sobre(): return render_template("sobre.html")
-
-# ESTA ROTA ESTAVA FALTANDO E CAUSAVA O ERRO NO RENDER
-@app.route("/glossario")
-def glossario():
-    return redirect(GLOSSARY_URL)
 
 @app.route("/excluir/<int:id>")
 def excluir(id):
     analise = Analise.query.get_or_404(id)
-    db.session.delete(analise); db.session.commit()
-    return redirect(url_for("historico"))
+    db.session.delete(analise)
+    db.session.commit()
+    flash("Análise removida.", "success")
+    return redirect(url_for("home"))
+
+@app.get("/biblioteca")
+def biblioteca():
+    return render_template("biblioteca.html", links=LIBRARY_LINKS)
+
+@app.get("/glossario")
+def glossario():
+    return redirect(GLOSSARY_URL)
+
+@app.get("/sobre")
+def sobre():
+    return render_template("sobre.html")
+
+# Erros
+@app.errorhandler(404)
+def page_not_found(e): return render_template('404.html'), 404
+@app.errorhandler(500)
+def server_error(e): return render_template('500.html'), 500
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "10000"))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.getenv("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=False)
