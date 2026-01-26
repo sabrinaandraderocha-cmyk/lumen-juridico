@@ -192,7 +192,7 @@ def build_output(text: str):
         "fundamentos_juris": juris_refs,
         "keywords": keywords,
         "queries_juris": pesquisas,
-        "sugestoes": LIBRARY_LINKS[:8], # Sugere os 8 primeiros por padrão
+        "sugestoes": LIBRARY_LINKS[:8],
         "alerta": "Texto excessivamente curto - análise limitada." if len(text) < 500 else None
     }
 
