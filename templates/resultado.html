@@ -40,6 +40,7 @@
       <h2 style="color: #1e3a8a; display: flex; align-items: center; gap: 8px;">
         📌 Tema Principal
       </h2>
+
       <p style="font-size: 1.2rem; font-weight: 600; color: #1e293b; margin-bottom: 8px;">
         {{ out.tema_principal or "Análise Jurídica Geral" }}
       </p>
@@ -56,37 +57,38 @@
         </p>
       {% endif %}
 
+      {# ===== SÍNTESE DO CASO "LIMPA" ===== #}
       {% if out.resumo %}
-        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <h3 style="margin: 0 0 8px 0; font-size: 1rem; color: #475569;
-            {% if out.resumo %}
-  {# limpa prefixos chatos no começo do resumo #}
-  {% set resumo_limpo = (out.resumo
-    | replace("EMENTA:", "")
-    | replace("Ementa:", "")
-    | replace("EMENTA", "")
-    | replace("Ementa", "")
-    | trim
-  ) %}
+        {% set resumo_limpo = (out.resumo
+          | replace("EMENTA:", "")
+          | replace("Ementa:", "")
+          | replace("EMENTA", "")
+          | replace("Ementa", "")
+          | trim
+        ) %}
 
-  {% if resumo_limpo and (resumo_limpo|length) >= 40 %}
-    <div class="syn-box">
-      <div class="syn-head">
-        <span class="syn-badge">Resumo</span>
-        <span class="syn-title">Síntese do caso</span>
-      </div>
-      <p class="syn-text">{{ resumo_limpo }}</p>
-    </div>
-  {% else %}
-    <div class="syn-box syn-empty">
-      <div class="syn-head">
-        <span class="syn-badge">Resumo</span>
-        <span class="syn-title">Síntese do caso</span>
-      </div>
-      <p class="syn-text muted">Sem ementa clara no texto enviado. Use a “Sintaxe do Caso” abaixo para entender fatos, controvérsia e resultado.</p>
-    </div>
-  {% endif %}
-{% endif %}
+        {% if resumo_limpo and (resumo_limpo|length) >= 40 %}
+          <div class="syn-box">
+            <div class="syn-head">
+              <span class="syn-badge">Resumo</span>
+              <span class="syn-title">Síntese do caso</span>
+            </div>
+            <p class="syn-text">{{ resumo_limpo }}</p>
+          </div>
+        {% else %}
+          <div class="syn-box syn-empty">
+            <div class="syn-head">
+              <span class="syn-badge">Resumo</span>
+              <span class="syn-title">Síntese do caso</span>
+            </div>
+            <p class="syn-text muted">
+              Sem ementa clara no texto enviado. Use a “Sintaxe do Caso” abaixo para entender fatos, controvérsia e resultado.
+            </p>
+          </div>
+        {% endif %}
+      {% endif %}
+    </section>
+
     <!-- =======================
          METADADOS DO CASO + DISPOSITIVO
          ======================= -->
@@ -149,7 +151,7 @@
     {% endif %}
 
     <!-- =======================
-         SINTAXE DO CASO (novo)
+         SINTAXE DO CASO
          ======================= -->
     {% if out.sintaxe_caso %}
       <section class="card shadow-sm" style="margin-bottom: 20px; border-left: 4px solid #22c55e;">
@@ -208,6 +210,7 @@
         <h2 style="color: #059669; display: flex; align-items: center; gap: 8px;">
           ⚖️ Fundamentação Legal
         </h2>
+
         {% if out.fundamentos_normas %}
           <ul style="list-style: none; padding: 0; margin-top: 10px;">
             {% for f in out.fundamentos_normas %}
@@ -294,9 +297,7 @@
           📖 Glossário Técnico
         </h2>
 
-        {# Ajuste: seu backend agora manda "termos_importantes" #}
         {% set gloss = out.termos_importantes or [] %}
-
         {% if gloss %}
           <ul style="list-style: none; padding: 0; margin-top: 10px;">
             {% for g in gloss %}
@@ -318,7 +319,7 @@
     </div>
 
     <!-- =======================
-         ARTIGOS RECOMENDADOS (novo)
+         ARTIGOS RECOMENDADOS
          ======================= -->
     {% if out.artigos_recomendados %}
       <section class="card shadow-sm" style="margin-top: 20px; border-left: 4px solid #a855f7;">
@@ -467,6 +468,48 @@
     }
     .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    /* ===== SÍNTESE DO CASO (LIMPA) ===== */
+    .syn-box{
+      background:#f8fafc;
+      border:1px solid #e2e8f0;
+      border-radius:12px;
+      padding:14px 14px 12px 14px;
+      margin-top: 10px;
+    }
+    .syn-head{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+    }
+    .syn-badge{
+      font-size:0.75rem;
+      font-weight:700;
+      padding:4px 10px;
+      border-radius:999px;
+      background:#eff6ff;
+      border:1px solid #bfdbfe;
+      color:#1d4ed8;
+    }
+    .syn-title{
+      font-size:0.95rem;
+      font-weight:700;
+      color:#334155;
+    }
+    .syn-text{
+      margin:0;
+      line-height:1.65;
+      color:#334155;
+      font-size:0.95rem;
+      display:-webkit-box;
+      -webkit-line-clamp:6;
+      -webkit-box-orient:vertical;
+      overflow:hidden;
+    }
+    .syn-empty .syn-text{
+      -webkit-line-clamp:unset;
+    }
   </style>
 
 {% endblock %}
