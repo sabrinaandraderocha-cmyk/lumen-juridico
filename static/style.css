@@ -305,3 +305,48 @@
     .card { padding: 15px; }
     .btn { width: 100%; } /* Botões full-width no mobile */
   }
+.syn-box{
+  background:#f8fafc;
+  border:1px solid #e2e8f0;
+  border-radius:12px;
+  padding:14px 14px 12px 14px;
+}
+
+.syn-head{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.syn-badge{
+  font-size:0.75rem;
+  font-weight:700;
+  padding:4px 10px;
+  border-radius:999px;
+  background:#eff6ff;
+  border:1px solid #bfdbfe;
+  color:#1d4ed8;
+}
+
+.syn-title{
+  font-size:0.95rem;
+  font-weight:700;
+  color:#334155;
+}
+
+.syn-text{
+  margin:0;
+  line-height:1.65;
+  color:#334155;
+  font-size:0.95rem;
+  /* “limpa” visualmente: limita a altura sem ficar feio */
+  display:-webkit-box;
+  -webkit-line-clamp:6;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
+.syn-empty .syn-text{
+  -webkit-line-clamp:unset;
+}
