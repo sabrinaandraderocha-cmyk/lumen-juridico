@@ -6,347 +6,373 @@
 /* =========================
    1. VARIÁVEIS (PALETA DE CORES)
    ========================= */
-   :root {
-    /* Cores Principais */
-    --bg-body: #f8fafc;        /* Fundo geral mais suave */
-    --bg-card: #ffffff;        /* Fundo dos cartões */
-    
-    --primary: #1e40af;        /* Azul Jurídico (Royal Blue) */
-    --primary-hover: #1e3a8a;  /* Azul mais escuro no hover */
-    --primary-light: #eff6ff;  /* Fundo azul bem claro */
-  
-    --secondary: #64748b;      /* Cinza Azulado (Slate) */
-    --border: #e2e8f0;         /* Bordas sutis */
-    
-    /* Texto */
-    --text-main: #1e293b;      /* Texto principal (quase preto) */
-    --text-muted: #64748b;     /* Texto secundário */
-  
-    /* Estados */
-    --success: #10b981;        /* Verde sucesso */
-    --danger: #ef4444;         /* Vermelho erro */
-    --warning: #f59e0b;        /* Laranja alerta */
-  
-    /* Sombras */
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  }
-  
-  /* =========================
-     2. RESET & BASE
-     ========================= */
-  * { box-sizing: border-box; }
-  
-  body {
-    margin: 0;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: var(--bg-body);
-    color: var(--text-main);
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-  }
-  
-  a { text-decoration: none; color: inherit; transition: color 0.2s; }
-  a:hover { color: var(--primary); }
-  
-  h1, h2, h3, h4 { margin: 0 0 12px 0; font-weight: 700; line-height: 1.2; }
-  p { margin: 0 0 16px 0; }
-  
-  .muted { color: var(--text-muted); font-size: 0.95em; }
-  
-  /* =========================
-     3. LAYOUT & GRID
-     ========================= */
-  .container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 20px;
-  }
-  
-  /* Grid Responsivo */
-  .grid2 {
-    display: grid;
-    gap: 20px;
-    grid-template-columns: 1fr; /* Mobile First */
-  }
-  
-  @media (min-width: 768px) {
-    .grid2 { grid-template-columns: 1fr 1fr; }
-  }
-  
-  /* =========================
-     4. HEADER & NAV
-     ========================= */
-  .topbar {
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    box-shadow: var(--shadow-sm);
-  }
-  
-  .topbar-inner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px 20px;
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-  
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-weight: 800;
-    font-size: 1.3rem;
-    color: var(--primary);
-  }
-  
-  .brand-icon {
-    background: var(--primary-light);
-    color: var(--primary);
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 10px;
-    font-size: 1.2rem;
-  }
-  
-  /* Navegação */
-  .nav { display: flex; gap: 20px; align-items: center; }
-  
-  .nav a {
-    font-size: 0.95rem;
-    font-weight: 500;
-    color: var(--text-muted);
-  }
-  
-  .nav a:hover { color: var(--primary); }
-  
-  .btn-nav-primary {
-    background: var(--primary);
-    color: white !important;
-    padding: 8px 16px;
-    border-radius: 6px;
-    transition: background 0.2s;
-  }
-  
-  .btn-nav-primary:hover { background: var(--primary-hover); }
-  
-  /* =========================
-     5. COMPONENTES: CARDS
-     ========================= */
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 24px;
-    margin-bottom: 24px;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  
-  .card h2 {
-    font-size: 1.25rem;
-    color: var(--text-main);
-    border-bottom: 1px solid var(--border);
-    padding-bottom: 10px;
-    margin-bottom: 15px;
-  }
-  
-  /* =========================
-     6. FORMULÁRIOS
-     ========================= */
-  label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 600;
-    color: var(--text-main);
-    font-size: 0.95rem;
-  }
-  
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  textarea,
-  select {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 1rem;
-    font-family: inherit;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    background: #f9fafb;
-  }
-  
-  input:focus, textarea:focus, select:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    background: white;
-  }
-  
-  /* =========================
-     7. BOTÕES
-     ========================= */
-  .actions {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 20px;
-  }
-  
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 24px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: all 0.2s;
-    border: none;
-    text-decoration: none;
-  }
-  
-  .btn.primary {
-    background: var(--primary);
-    color: white;
-    box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-  }
-  
-  .btn.primary:hover {
-    background: var(--primary-hover);
-    transform: translateY(-1px);
-  }
-  
-  .btn.secondary {
-    background: white;
-    color: var(--text-main);
-    border: 1px solid var(--border);
-  }
-  
-  .btn.secondary:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-  }
-  
-  .btn.danger {
-    background: #fee2e2;
-    color: #991b1b;
-  }
-  
-  .btn.danger:hover {
-    background: #fecaca;
-  }
-  
-  /* =========================
-     8. FLASH MESSAGES
-     ========================= */
-  .flash-wrap { margin-bottom: 20px; }
-  
-  .flash {
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    font-weight: 500;
-  }
-  
-  .flash.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
-  .flash.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-  .flash.warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
-  
-  /* =========================
-     9. HERO (HEADER DA PÁGINA)
-     ========================= */
-  .hero {
-    text-align: center;
-    padding: 40px 20px;
-  }
-  
-  .hero h1 {
-    font-size: 2.5rem;
-    color: var(--text-main);
-    margin-bottom: 15px;
-  }
-  
-  .hero .lead {
-    font-size: 1.15rem;
-    color: var(--text-muted);
-    max-width: 700px;
-    margin: 0 auto;
-  }
-  
-  /* =========================
-     10. FOOTER
-     ========================= */
-  .footer {
-    background: white;
-    border-top: 1px solid var(--border);
-    padding: 40px 20px;
-    text-align: center;
-    margin-top: 60px;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-  }
-  
-  /* =========================
-     RESPONSIVIDADE EXTRA
-     ========================= */
-  @media (max-width: 600px) {
-    .nav { gap: 10px; font-size: 0.85rem; }
-    .hero h1 { font-size: 2rem; }
-    .card { padding: 15px; }
-    .btn { width: 100%; } /* Botões full-width no mobile */
-  }
-.syn-box{
-  background:#f8fafc;
-  border:1px solid #e2e8f0;
-  border-radius:12px;
-  padding:14px 14px 12px 14px;
+:root {
+  /* Cores Principais */
+  --bg-body: #f8fafc;        /* Fundo geral mais suave */
+  --bg-card: #ffffff;        /* Fundo dos cartões */
+
+  --primary: #1e40af;        /* Azul Jurídico (Royal Blue) */
+  --primary-hover: #1e3a8a;  /* Azul mais escuro no hover */
+  --primary-light: #eff6ff;  /* Fundo azul bem claro */
+
+  --secondary: #64748b;      /* Cinza Azulado (Slate) */
+  --border: #e2e8f0;         /* Bordas sutis */
+
+  /* Texto */
+  --text-main: #1e293b;      /* Texto principal (quase preto) */
+  --text-muted: #64748b;     /* Texto secundário */
+
+  /* Estados */
+  --success: #10b981;        /* Verde sucesso */
+  --danger: #ef4444;         /* Vermelho erro */
+  --warning: #f59e0b;        /* Laranja alerta */
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-.syn-head{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-bottom:10px;
+/* =========================
+   2. RESET & BASE
+   ========================= */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
-.syn-badge{
-  font-size:0.75rem;
-  font-weight:700;
-  padding:4px 10px;
-  border-radius:999px;
-  background:#eff6ff;
-  border:1px solid #bfdbfe;
-  color:#1d4ed8;
+a { text-decoration: none; color: inherit; transition: color 0.2s; }
+a:hover { color: var(--primary); }
+
+h1, h2, h3, h4 { margin: 0 0 12px 0; font-weight: 700; line-height: 1.2; }
+p { margin: 0 0 16px 0; }
+
+.muted { color: var(--text-muted); font-size: 0.95em; }
+
+/* =========================
+   3. LAYOUT & GRID
+   ========================= */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
 }
 
-.syn-title{
-  font-size:0.95rem;
-  font-weight:700;
-  color:#334155;
+/* Grid Responsivo */
+.grid2 {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr; /* Mobile First */
 }
 
-.syn-text{
-  margin:0;
-  line-height:1.65;
-  color:#334155;
-  font-size:0.95rem;
+@media (min-width: 768px) {
+  .grid2 { grid-template-columns: 1fr 1fr; }
+}
+
+/* =========================
+   4. HEADER & NAV
+   ========================= */
+.topbar {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: var(--shadow-sm);
+}
+
+.topbar-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 800;
+  font-size: 1.3rem;
+  color: var(--primary);
+}
+
+.brand-icon {
+  background: var(--primary-light);
+  color: var(--primary);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 1.2rem;
+}
+
+/* Navegação */
+.nav { display: flex; gap: 20px; align-items: center; }
+
+.nav a {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.nav a:hover { color: var(--primary); }
+
+.btn-nav-primary {
+  background: var(--primary);
+  color: white !important;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.btn-nav-primary:hover { background: var(--primary-hover); }
+
+/* =========================
+   5. COMPONENTES: CARDS
+   ========================= */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card h2 {
+  font-size: 1.25rem;
+  color: var(--text-main);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+  margin-bottom: 15px;
+}
+
+/* =========================
+   6. FORMULÁRIOS
+   ========================= */
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-main);
+  font-size: 0.95rem;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #f9fafb;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  background: white;
+}
+
+/* =========================
+   7. BOTÕES
+   ========================= */
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+  border: none;
+  text-decoration: none;
+}
+
+.btn.primary {
+  background: var(--primary);
+  color: white;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+}
+
+.btn.primary:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn.secondary {
+  background: white;
+  color: var(--text-main);
+  border: 1px solid var(--border);
+}
+
+.btn.secondary:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.btn.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.btn.danger:hover {
+  background: #fecaca;
+}
+
+/* =========================
+   8. FLASH MESSAGES
+   ========================= */
+.flash-wrap { margin-bottom: 20px; }
+
+.flash {
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.flash.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.flash.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.flash.warning { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+
+/* =========================
+   9. HERO (HEADER DA PÁGINA)
+   ========================= */
+.hero {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.hero h1 {
+  font-size: 2.5rem;
+  color: var(--text-main);
+  margin-bottom: 15px;
+}
+
+.hero .lead {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* =========================
+   10. FOOTER
+   ========================= */
+.footer {
+  background: white;
+  border-top: 1px solid var(--border);
+  padding: 40px 20px;
+  text-align: center;
+  margin-top: 60px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* =========================
+   11. CLASSES SYN
+   ========================= */
+.syn-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 14px 12px 14px;
+}
+
+.syn-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.syn-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+}
+
+.syn-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.syn-text {
+  margin: 0;
+  line-height: 1.65;
+  color: #334155;
+  font-size: 0.95rem;
   /* “limpa” visualmente: limita a altura sem ficar feio */
-  display:-webkit-box;
-  -webkit-line-clamp:6;
-  -webkit-box-orient:vertical;
-  overflow:hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.syn-empty .syn-text{
-  -webkit-line-clamp:unset;
+.syn-empty .syn-text {
+  -webkit-line-clamp: unset;
+}
+
+/* =========================
+   12. RESPONSIVIDADE EXTRA (ATUALIZADA)
+   ========================= */
+@media (max-width: 768px) {
+  /* 1. Faz o cabeçalho empilhar: Logo em cima, Menu embaixo */
+  .topbar-inner {
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px 10px;
+  }
+
+  /* 2. Centraliza a logo/título */
+  .brand {
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* 3. Organiza o menu para quebrar a linha se não couber tudo */
+  .nav { 
+    flex-wrap: wrap; 
+    justify-content: center;
+    gap: 12px; 
+    font-size: 0.9rem; 
+  }
+
+  .hero h1 { font-size: 2rem; }
+  .card { padding: 15px; }
+  
+  /* 4. Botões ocupam a largura toda no mobile */
+  .btn { width: 100%; } 
 }
