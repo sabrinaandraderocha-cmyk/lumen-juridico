@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}Lumen Jurídico:{% endblock %}</title>
+  <title>{% block title %}Lumen Jurídico{% endblock %}</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,12 +12,13 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
-<body>
-  <header class="topbar">
-    <div class="container topbar-inner">
-      <div class="brand">
-        <span class="brand-icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+<body style="display: flex; flex-direction: column; min-height: 100vh; margin: 0; font-family: 'Inter', sans-serif;">
+  <header class="topbar" style="border-bottom: 1px solid #e2e8f0; padding: 15px 0; background: #ffffff;">
+    <div class="container topbar-inner" style="max-width: 1000px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 20px;">
+      
+      <div class="brand" style="display: flex; align-items: center; gap: 12px;">
+        <span class="brand-icon" aria-hidden="true" style="color: #2563eb;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
             <path d="M9 18h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <path d="M10 22h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             <path d="M8 14c-1.2-1.1-2-2.7-2-4.6A6 6 0 1 1 18 9.4c0 1.9-.8 3.5-2 4.6-.7.7-1 1.2-1 2.1v.4H9v-.4c0-.9-.3-1.4-1-2.1Z"
@@ -26,27 +27,35 @@
         </span>
 
         <div>
-          <div class="brand-name">Lumen Jurídico</div>
-          <div class="brand-tag">Clareza sobre decisões judiciais.</div>
+          <div class="brand-name" style="font-weight: 700; font-size: 1.2rem; color: #1e293b;">Lumen Jurídico</div>
+          <div class="brand-tag" style="font-size: 0.8rem; color: #64748b;">Clareza sobre decisões judiciais.</div>
         </div>
       </div>
 
-      <nav class="nav">
-        <a href="{{ url_for('home') }}">Analisar</a>
-        <a href="{{ url_for('historico') }}">Histórico</a>
-        <a href="{{ url_for('biblioteca') }}">Biblioteca</a>
-        <a href="{{ url_for('sobre') }}">Sobre</a>
+      <nav class="nav" style="display: flex; gap: 20px; font-size: 0.95rem; font-weight: 600;">
+        <a href="{{ url_for('home') }}" style="text-decoration: none; color: #475569;">Analisar</a>
+        <a href="{{ url_for('historico') }}" style="text-decoration: none; color: #475569;">Histórico</a>
+        <a href="{{ url_for('biblioteca') }}" style="text-decoration: none; color: #475569;">Biblioteca</a>
+        <a href="{{ url_for('sobre') }}" style="text-decoration: none; color: #475569;">Sobre</a>
       </nav>
     </div>
   </header>
 
-  <main class="container">
+  <main class="container" style="flex: 1; max-width: 1000px; margin: 40px auto; padding: 0 20px; width: 100%; box-sizing: border-box;">
+    
+    {# ===== GERENCIADOR INTELIGENTE DE MENSAGENS ===== #}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
         {% for category, msg in messages %}
-          <div class="flash {{ category }}" style="padding: 15px; margin-bottom: 20px; border-radius: 8px; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca;">
-            {{ msg }}
-          </div>
+          {% if category == 'success' %}
+            <div class="flash success" style="padding: 15px; margin-bottom: 20px; border-radius: 8px; background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.2rem;">✅</span> {{ msg }}
+            </div>
+          {% else %}
+            <div class="flash error" style="padding: 15px; margin-bottom: 20px; border-radius: 8px; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 1.2rem;">⚠️</span> {{ msg }}
+            </div>
+          {% endif %}
         {% endfor %}
       {% endif %}
     {% endwith %}
@@ -54,12 +63,14 @@
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="footer" style="margin-top: 50px; padding: 20px 0; border-top: 1px solid #e2e8f0; color: #64748b;">
-    <div class="container footer-inner" style="display: flex; justify-content: space-between; align-items: center;">
-      <div>© 2026 Lumen Jurídico</div>
+  <footer class="footer" style="margin-top: auto; padding: 20px 0; border-top: 1px solid #e2e8f0; background: #f8fafc; color: #64748b;">
+    <div class="container footer-inner" style="max-width: 1000px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+      <div style="font-size: 0.9rem;">
+        © 2026 Lumen Jurídico • Desenvolvido por Sabrina
+      </div>
       <div>
-        <a href="https://portal.stf.jus.br/jurisprudencia/glossario.asp" target="_blank" style="color:#64748b; text-decoration:none; font-size: 0.9rem;">
-          Glossário Jurídico (STF)
+        <a href="https://portal.stf.jus.br/jurisprudencia/glossario.asp" target="_blank" style="color:#64748b; text-decoration:none; font-size: 0.9rem; border-bottom: 1px dashed #cbd5e1;">
+          Glossário Jurídico (STF) ↗
         </a>
       </div>
     </div>
