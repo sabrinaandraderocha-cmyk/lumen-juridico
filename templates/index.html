@@ -7,88 +7,112 @@
   <section class="hero">
     <div class="hero-badge">
       <span class="dot"></span>
-      Funciona localmente • Histórico automático
+      IA Jurídica Avançada • Histórico automático
     </div>
 
     <h1>Lumen Jurídico</h1>
 
     <p class="lead">
-      Leitura clara de decisões judiciais: do texto bruto ao que importa.
-      Cole a decisão abaixo ou envie um arquivo para extrair teses e prazos.
+      Leitura inteligente de decisões judiciais: do texto bruto ao que realmente importa.
+      Cole a decisão abaixo ou envie um arquivo para extrair fatos, teses e fundamentos.
     </p>
 
-    <div class="card bg-light" style="margin-top:20px; border-left: 4px solid var(--accent, #2563eb);">
-      <h3 style="margin:0 0 10px 0; font-size: 1.1rem;">O que a IA analisa:</h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-size: 0.95em;">
-        <div>✅ <strong>Tema Central:</strong> O assunto principal.</div>
-        <div>✅ <strong>Legislação:</strong> Artigos e leis citadas.</div>
-        <div>✅ <strong>Jurisprudência:</strong> Súmulas e Temas.</div>
-        <div>✅ <strong>Checklist:</strong> Pontos de atenção práticos.</div>
+    <div class="card bg-light" style="margin-top:20px; border-left: 4px solid var(--accent, #2563eb); text-align: left;">
+      <h3 style="margin:0 0 10px 0; font-size: 1.1rem; color: #1e3a8a;">O que a IA analisa para você:</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.95em; color: #334155;">
+        <div>🧠 <strong>Síntese:</strong> Fatos, controvérsia e dispositivo.</div>
+        <div>⚖️ <strong>Fundamentação:</strong> Leis e jurisprudência citadas.</div>
+        <div>✅ <strong>Checklist:</strong> Pontos de atenção para sua peça.</div>
+        <div>🧩 <strong>Doutrina:</strong> Sugestões de artigos e cursos.</div>
       </div>
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0;">
     <form method="post" action="{{ url_for('analisar') }}" enctype="multipart/form-data">
       
       <div style="margin-bottom: 20px;">
-        <label for="texto" style="font-weight: bold; display: block; margin-bottom: 8px;">1. Cole o texto da decisão</label>
+        <label for="texto" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 8px; font-size: 1.05rem;">
+          1. Cole o texto do documento
+        </label>
         <textarea
           id="texto"
           name="texto"
           rows="10"
           class="form-control"
-          placeholder="Cole aqui a ementa, o voto ou o acórdão..."
+          placeholder="Cole aqui a ementa, a petição, o acórdão ou a sentença..."
         ></textarea>
       </div>
 
-      <div style="margin-bottom: 20px; padding-top: 20px; border-top: 1px solid #eee;">
-        <label for="arquivo" style="font-weight: bold; display: block; margin-bottom: 8px;">2. Ou envie um arquivo (PDF / Word)</label>
-        <input
-          id="arquivo"
-          name="arquivo"
-          type="file"
-          accept=".pdf,.docx,.txt"
-          style="width: 100%; padding: 10px; background: #f9fafb; border: 1px dashed #ccc; border-radius: 6px;"
-        >
+      <div style="margin-bottom: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+        <label for="arquivo" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 8px; font-size: 1.05rem;">
+          2. Ou envie um arquivo (PDF / Word / TXT)
+        </label>
+        <div style="position: relative;">
+          <input
+            id="arquivo"
+            name="arquivo"
+            type="file"
+            accept=".pdf,.docx,.txt"
+            style="width: 100%; padding: 12px; background: #f8fafc; border: 1px dashed #94a3b8; border-radius: 8px; color: #475569; cursor: pointer; transition: all 0.2s;"
+            onmouseover="this.style.borderColor='#3b82f6'; this.style.background='#eff6ff'"
+            onmouseout="this.style.borderColor='#94a3b8'; this.style.background='#f8fafc'"
+          >
+        </div>
       </div>
 
-      <div class="actions" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 25px;">
-        <button class="btn primary" type="submit" style="flex: 1; min-width: 200px; justify-content: center;">
-          🔍 Analisar Agora
+      <div class="actions" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 25px;">
+        <button class="btn primary" type="submit" style="flex: 1; min-width: 220px; justify-content: center; font-size: 1.1rem; padding: 14px;">
+          ✨ Analisar com IA
         </button>
 
-        <a class="btn secondary" href="{{ url_for('biblioteca') }}">
+        <a class="btn secondary" href="{{ url_for('biblioteca') }}" style="display: flex; align-items: center; justify-content: center;">
           📚 Biblioteca
         </a>
 
-        <a class="btn secondary" href="{{ url_for('glossario') }}" target="_blank">
-          📖 Glossário STF
+        <a class="btn secondary" href="{{ url_for('glossario') }}" target="_blank" style="display: flex; align-items: center; justify-content: center;">
+          📖 Glossário
         </a>
       </div>
 
-      <p class="muted" style="margin-top:15px; font-size: 0.85em; text-align: center;">
-        Privacidade: Processamento local. Seus arquivos não são enviados para terceiros.
+      <p class="muted" style="margin-top: 20px; font-size: 0.85em; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        🛡️ <strong>Privacidade:</strong> O processamento ocorre via conexão segura (API). Seus documentos não alimentam bancos de dados públicos.
       </p>
     </form>
   </section>
 
   {% if historico %}
-  <section style="margin-top: 40px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-      <h2 style="font-size: 1.5rem; margin: 0;">Histórico Recente</h2>
-      <a href="{{ url_for('historico') }}" style="font-size: 0.9em; text-decoration: none; color: var(--accent, #2563eb);">Ver tudo &rarr;</a>
+  <section style="margin-top: 50px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 style="font-size: 1.4rem; margin: 0; color: #1e293b; display: flex; align-items: center; gap: 8px;">
+        🕒 Últimas Análises
+      </h2>
+      <a href="{{ url_for('historico') }}" style="font-size: 0.95em; font-weight: 600; text-decoration: none; color: var(--accent, #2563eb);">Ver histórico completo &rarr;</a>
     </div>
 
-    <div class="grid-historico">
+    <div class="grid-historico" style="display: grid; gap: 12px;">
       {% for item in historico %}
-      <a href="{{ url_for('resultado', id=item.id) }}" class="card card-historico" style="text-decoration: none; color: inherit; display: block; margin-bottom: 10px;">
+      <a href="{{ url_for('resultado', id=item.id) }}" class="card card-historico" style="text-decoration: none; color: inherit; display: block; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0; background: #ffffff;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <strong style="color: #1e293b;">{{ item.titulo_resumo }}</strong>
-            <div class="muted" style="font-size: 0.85em; margin-top: 4px;">{{ item.data_criacao.strftime('%d/%m às %H:%M') }}</div>
+            <strong style="color: #0f172a; font-size: 1.05rem; display: block; margin-bottom: 6px;">
+              {{ item.titulo_resumo or "Análise Sem Título" }}
+            </strong>
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <span class="muted" style="font-size: 0.85em; display: flex; align-items: center; gap: 4px;">
+                {{ item.data_criacao.strftime('%d/%m às %H:%M') }}
+              </span>
+              
+              {% if item.tipo_peca %}
+              <span style="font-size: 0.7rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 99px; font-weight: 600; border: 1px solid #bae6fd;">
+                {{ item.tipo_peca }}
+              </span>
+              {% endif %}
+            </div>
           </div>
-          <span style="background: #e2e8f0; padding: 4px 8px; border-radius: 4px; font-size: 0.8em;">Ver &rarr;</span>
+          <span style="background: #eff6ff; color: #1d4ed8; padding: 6px 12px; border-radius: 6px; font-size: 0.85em; font-weight: 600; border: 1px solid #bfdbfe;">
+            Abrir &rarr;
+          </span>
         </div>
       </a>
       {% endfor %}
@@ -98,7 +122,7 @@
 
   <style>
     .hero {
-      padding: 40px 0 20px;
+      padding: 30px 0 20px;
       text-align: center;
     }
 
@@ -106,12 +130,14 @@
       font-size: 2.5rem;
       line-height: 1.2;
       margin: 15px 0;
-      color: #1e293b;
+      color: #0f172a;
+      font-weight: 800;
+      letter-spacing: -0.5px;
     }
 
     .hero .lead {
-      font-size: 1.1rem;
-      color: #64748b;
+      font-size: 1.15rem;
+      color: #475569;
       margin: 0 auto 30px;
       max-width: 700px;
       line-height: 1.6;
@@ -121,13 +147,13 @@
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 12px;
+      padding: 6px 14px;
       border-radius: 99px;
       background: #eff6ff;
       color: #1d4ed8;
       font-size: 0.85rem;
-      font-weight: 600;
-      border: 1px solid #dbeafe;
+      font-weight: 700;
+      border: 1px solid #bfdbfe;
     }
 
     .hero-badge .dot {
@@ -136,32 +162,40 @@
       border-radius: 50%;
       background: #3b82f6;
       display: inline-block;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
     }
 
     /* Ajuste do formulário */
     textarea.form-control {
       width: 100%;
-      padding: 12px;
+      padding: 14px;
       border: 1px solid #cbd5e1;
       border-radius: 8px;
       font-family: inherit;
       font-size: 1rem;
       resize: vertical;
-      transition: border-color 0.2s;
+      transition: all 0.2s;
+      background-color: #f8fafc;
+      color: #1e293b;
     }
     
     textarea.form-control:focus {
       outline: none;
       border-color: #3b82f6;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+      background-color: #ffffff;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
     }
 
     /* Card de Histórico Hover */
-    .card-historico:hover {
-      border-color: #3b82f6;
-      transform: translateY(-2px);
+    .card-historico {
       transition: all 0.2s ease;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card-historico:hover {
+      border-color: #93c5fd !important;
+      background-color: #f8fafc !important;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
     }
   </style>
 
