@@ -1,37 +1,69 @@
 {% extends "base.html" %}
+{% block title %}Histórico • Lumen Jurídico{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-slate-800 mb-6">Histórico de Análises</h1>
+<div style="max-width: 800px; margin: 0 auto; padding: 20px 0;">
+    <h1 style="color: #1e293b; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;">
+        📂 Histórico de Análises
+    </h1>
 
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="card shadow-sm" style="padding: 0; overflow: hidden; border-radius: 12px; border: 1px solid #e2e8f0;">
         {% for item in paginacao.items %}
-        <div class="p-5 border-b last:border-0 hover:bg-slate-50 transition flex justify-between items-center group">
-            <div>
-                <a href="{{ url_for('resultado', id=item.id) }}" class="font-semibold text-lg text-slate-800 hover:text-blue-700">
-                    {{ item.titulo_resumo }}
+        <div style="padding: 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background-color: #ffffff; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f8fafc'" onmouseout="this.style.backgroundColor='#ffffff'">
+            
+            <div style="flex: 1; padding-right: 20px;">
+                <a href="{{ url_for('resultado', id=item.id) }}" style="text-decoration: none; font-size: 1.15rem; font-weight: 700; color: #0f172a; display: block; margin-bottom: 6px;">
+                    {{ item.titulo_resumo or "Análise Sem Título" }}
                 </a>
-                <p class="text-sm text-slate-500 mt-1">
-                    {{ item.data_criacao.strftime('%d/%m/%Y às %H:%M') }}
-                </p>
+                
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <span style="font-size: 0.85rem; color: #64748b; display: flex; align-items: center; gap: 4px;">
+                        🕒 {{ item.data_criacao.strftime('%d/%m/%Y às %H:%M') }}
+                    </span>
+                    
+                    {# Nova etiqueta com o Tipo de Peça salvo pela IA #}
+                    {% if item.tipo_peca %}
+                    <span style="font-size: 0.75rem; background: #e0f2fe; color: #0369a1; padding: 2px 10px; border-radius: 99px; font-weight: 600; border: 1px solid #bae6fd;">
+                        {{ item.tipo_peca }}
+                    </span>
+                    {% endif %}
+                </div>
             </div>
-            <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition">
-                <a href="{{ url_for('resultado', id=item.id) }}" class="text-blue-600 hover:underline text-sm font-medium">Ver</a>
-                <a href="{{ url_for('excluir', id=item.id) }}" class="text-red-600 hover:underline text-sm font-medium" onclick="return confirm('Apagar este registro?')">Excluir</a>
+
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <a href="{{ url_for('resultado', id=item.id) }}" class="btn secondary" style="padding: 8px 14px; font-size: 0.9rem; margin: 0;">
+                    👁️ Ver
+                </a>
+                <a href="{{ url_for('excluir', id=item.id) }}" class="btn" style="padding: 8px 14px; font-size: 0.9rem; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; margin: 0;" onclick="return confirm('Tem certeza que deseja apagar esta análise permanentemente?')">
+                    🗑️ Excluir
+                </a>
             </div>
+            
         </div>
         {% else %}
-        <div class="p-8 text-center text-slate-500">Nenhuma análise salva ainda.</div>
+        <div style="padding: 50px 20px; text-align: center; color: #64748b;">
+            <div style="font-size: 3rem; margin-bottom: 15px;">📭</div>
+            <p style="font-size: 1.2rem; color: #334155; font-weight: 600; margin-bottom: 5px;">Nenhuma análise salva ainda.</p>
+            <p style="font-size: 0.95rem; margin-bottom: 20px;">Seus documentos processados aparecerão organizados aqui.</p>
+            <a href="{{ url_for('home') }}" class="btn primary" style="margin: 0 auto;">Iniciar Nova Análise</a>
+        </div>
         {% endfor %}
     </div>
 
-    <div class="mt-6 flex justify-center gap-2">
+    {% if paginacao.has_prev or paginacao.has_next %}
+    <div style="margin-top: 25px; display: flex; justify-content: center; gap: 10px;">
         {% if paginacao.has_prev %}
-            <a href="{{ url_for('historico', page=paginacao.prev_num) }}" class="px-4 py-2 bg-white border rounded hover:bg-slate-50">Anterior</a>
+            <a href="{{ url_for('historico', page=paginacao.prev_num) }}" class="btn secondary">
+                ⬅️ Anterior
+            </a>
         {% endif %}
+        
         {% if paginacao.has_next %}
-            <a href="{{ url_for('historico', page=paginacao.next_num) }}" class="px-4 py-2 bg-white border rounded hover:bg-slate-50">Próxima</a>
+            <a href="{{ url_for('historico', page=paginacao.next_num) }}" class="btn secondary">
+                Próxima ➡️
+            </a>
         {% endif %}
     </div>
+    {% endif %}
 </div>
 {% endblock %}
