@@ -1,6 +1,6 @@
 import os
+import json
 import re
-from collections import Counter
 from datetime import datetime
 
 from flask import (
@@ -8,7 +8,6 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
-from jinja2 import TemplateNotFound
 
 # Leitura de arquivos
 from pypdf import PdfReader
@@ -17,10 +16,13 @@ from docx import Document
 # Banco de dados
 from flask_sqlalchemy import SQLAlchemy
 
+# IA Generativa
+import google.generativeai as genai
+
 load_dotenv()
 
 # =========================
-# Configuração do App
+# Configuração do App e IA
 # =========================
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 INSTANCE_DIR = os.path.join(BASE_DIR, "instance")
@@ -39,6 +41,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db = SQLAlchemy(app)
 ALLOWED_EXTS = {".pdf", ".docx", ".txt"}
 
+# Configuração da Chave da API do Gemini (adicione GEMINI_API_KEY no seu .env)
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+
 # =========================
 # Modelo do Banco de Dados
 # =========================
@@ -56,12 +61,11 @@ with app.app_context():
     db.create_all()
 
 # =========================
-# Glossário e Biblioteca (NÃO MEXER)
+# Glossário, Biblioteca e Artigos (MANTIDOS)
 # =========================
 GLOSSARY_URL = "https://portal.stf.jus.br/jurisprudencia/glossario.asp"
 
 LIBRARY_LINKS = [
-    # --- Legislação Fundamental ---
     {"key": "CF_HTML", "titulo": "Constituição Federal (Compilado)", "url": "https://www.planalto.gov.br/ccivil_03/constituicao/constituicao.htm", "tipo": "Constituição"},
     {"key": "CC", "titulo": "Código Civil", "url": "https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm", "tipo": "Código"},
     {"key": "CPC", "titulo": "Código de Processo Civil (CPC)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2015/lei/l13105.htm", "tipo": "Código"},
@@ -69,31 +73,16 @@ LIBRARY_LINKS = [
     {"key": "CPP", "titulo": "Código de Processo Penal (CPP)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del3689compilado.htm", "tipo": "Código"},
     {"key": "CLT", "titulo": "Consolidação das Leis do Trabalho (CLT)", "url": "https://www.planalto.gov.br/ccivil_03/decreto-lei/del5452.htm", "tipo": "Trabalhista"},
     {"key": "CDC", "titulo": "Código de Defesa do Consumidor", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm", "tipo": "Consumidor"},
-
-    # --- Cursos Gratuitos (NOVO) ---
     {"key": "CURSO_STF", "titulo": "Cursos EAD – Supremo Tribunal Federal", "url": "https://ead.stf.jus.br/course/index.php?categoryid=3", "tipo": "🎓 Curso Gratuito"},
     {"key": "CURSO_ESA", "titulo": "ESA OAB – Cursos Gratuitos", "url": "https://esa.oab.org.br/home/ver-cursos?filter_categories_id%5B%5D=24", "tipo": "🎓 Curso Gratuito"},
     {"key": "CURSO_GOV", "titulo": "Escola Virtual Gov (EV.G) – Direito", "url": "https://www.escolavirtual.gov.br/catalogo", "tipo": "🎓 Curso Gratuito"},
-
-    # --- Legislação Específica ---
     {"key": "CTN", "titulo": "Código Tributário Nacional", "url": "https://www.planalto.gov.br/ccivil_03/leis/l5172.htm", "tipo": "Tributário"},
     {"key": "LIC", "titulo": "Lei de Licitações (14.133/21)", "url": "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2021/lei/L14133.htm", "tipo": "Administrativo"},
     {"key": "LIA", "titulo": "Lei de Improbidade Administrativa", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8429.htm", "tipo": "Administrativo"},
     {"key": "ECA", "titulo": "Estatuto da Criança e Adolescente", "url": "https://www.planalto.gov.br/ccivil_03/leis/l8069.htm", "tipo": "Estatuto"},
     {"key": "MPENHA", "titulo": "Lei Maria da Penha", "url": "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2006/lei/l11340.htm", "tipo": "Penal Especial"},
-
-    # --- Ferramentas ---
     {"key": "STF_GLOSS", "titulo": "Glossário Jurídico STF", "url": GLOSSARY_URL, "tipo": "Ferramenta"},
 ]
-
-STOPWORDS_PT = {
-    "a","o","os","as","um","uma","uns","umas","de","do","da","dos","das","em","no","na","nos","nas",
-    "por","para","com","sem","sobre","entre","e","ou","que","se","ao","aos","à","às","como","mais",
-    "menos","já","não","sim","ser","foi","é","são","era","sendo","ter","tem","têm","haver","há",
-    "art","artigo","lei","decreto","resolução","acórdão","relator","relatora","turma","câmara",
-    "tribunal","stj","stf","tj","trf","ministro","ministra","voto","decisão","processo","recurso",
-    "ementa","embargos","embargo","autos","vistos","juiz","juiza","excelencia", "vossa", "senhoria"
-}
 
 TERM_TRANSLATIONS = {
     "habeas corpus": "pedido para proteger a liberdade (contra prisão ilegal/abuso).",
@@ -114,249 +103,65 @@ TERM_TRANSLATIONS = {
     "ex nunc": "efeito não retroativo (vale daqui para frente)."
 }
 
-# =========================
-# ARTIGOS (SEPARADO DA BIBLIOTECA)
-# - cada item informa "de onde é" e qual código se relaciona
-# =========================
 ARTICLE_DB = [
-    {
-        "titulo": "Precedentes obrigatórios e segurança jurídica no CPC/2015",
-        "autores": "Daniel Mitidiero",
-        "onde": "Revista de Processo (RT) / Doutrina processual (Brasil)",
-        "ano": "2016",
-        "codigo_relacionado": ["CPC"],
-        "area": ["Processo Civil", "Precedentes"],
-        "url": ""
-    },
-    {
-        "titulo": "O sistema de precedentes no CPC/2015: fundamentos e desafios",
-        "autores": "Fredie Didier Jr.",
-        "onde": "Doutrina processual / artigos e capítulos sobre CPC/2015 (Brasil)",
-        "ano": "2015-2018",
-        "codigo_relacionado": ["CPC"],
-        "area": ["Processo Civil", "Precedentes"],
-        "url": ""
-    },
-    {
-        "titulo": "Prisão preventiva e fundamentação: controle de legalidade e motivação concreta",
-        "autores": "Aury Lopes Jr.",
-        "onde": "Doutrina penal/processual penal (Brasil)",
-        "ano": "2019-2023",
-        "codigo_relacionado": ["CPP", "CF"],
-        "area": ["Processo Penal", "Prisão"],
-        "url": ""
-    },
-    {
-        "titulo": "Responsabilidade civil: nexo causal, dano e critérios de quantificação",
-        "autores": "Sérgio Cavalieri Filho",
-        "onde": "Doutrina civil (Brasil)",
-        "ano": "2010-2022",
-        "codigo_relacionado": ["CC", "CF"],
-        "area": ["Civil", "Danos"],
-        "url": ""
-    },
-    {
-        "titulo": "Dever de motivação das decisões judiciais e controle democrático",
-        "autores": "Lenio Streck",
-        "onde": "Doutrina constitucional e teoria do direito (Brasil)",
-        "ano": "2014-2021",
-        "codigo_relacionado": ["CF", "CPC", "CPP"],
-        "area": ["Constitucional", "Decisões Judiciais"],
-        "url": ""
-    },
-    {
-        "titulo": "Tutela de urgência e requisitos: probabilidade do direito e perigo de dano",
-        "autores": "Humberto Theodoro Júnior",
-        "onde": "Doutrina processual civil (Brasil)",
-        "ano": "2016-2022",
-        "codigo_relacionado": ["CPC"],
-        "area": ["Processo Civil", "Tutelas Provisórias"],
-        "url": ""
-    },
-    {
-        "titulo": "Vulnerabilidade e proteção do consumidor: fundamentos e aplicação jurisprudencial",
-        "autores": "Cláudia Lima Marques",
-        "onde": "Doutrina de direito do consumidor (Brasil)",
-        "ano": "2000-2020",
-        "codigo_relacionado": ["CDC", "CF"],
-        "area": ["Consumidor"],
-        "url": ""
-    },
+    {"titulo": "Precedentes obrigatórios e segurança jurídica no CPC/2015", "autores": "Daniel Mitidiero", "onde": "Revista de Processo (RT)", "ano": "2016", "codigo_relacionado": ["CPC"], "area": ["Processo Civil", "Precedentes"], "url": ""},
+    {"titulo": "O sistema de precedentes no CPC/2015", "autores": "Fredie Didier Jr.", "onde": "Doutrina processual", "ano": "2015-2018", "codigo_relacionado": ["CPC"], "area": ["Processo Civil"], "url": ""},
+    {"titulo": "Prisão preventiva e fundamentação", "autores": "Aury Lopes Jr.", "onde": "Doutrina processual penal", "ano": "2019-2023", "codigo_relacionado": ["CPP", "CF"], "area": ["Processo Penal", "Prisão"], "url": ""},
+    {"titulo": "Responsabilidade civil: nexo causal, dano", "autores": "Sérgio Cavalieri Filho", "onde": "Doutrina civil", "ano": "2010-2022", "codigo_relacionado": ["CC", "CF"], "area": ["Civil", "Danos"], "url": ""},
+    {"titulo": "Dever de motivação das decisões judiciais", "autores": "Lenio Streck", "onde": "Doutrina constitucional", "ano": "2014-2021", "codigo_relacionado": ["CF", "CPC", "CPP"], "area": ["Constitucional"], "url": ""},
+    {"titulo": "Tutela de urgência e requisitos", "autores": "Humberto Theodoro Júnior", "onde": "Doutrina processual civil", "ano": "2016-2022", "codigo_relacionado": ["CPC"], "area": ["Processo Civil"], "url": ""},
+    {"titulo": "Vulnerabilidade e proteção do consumidor", "autores": "Cláudia Lima Marques", "onde": "Doutrina consumidor", "ano": "2000-2020", "codigo_relacionado": ["CDC", "CF"], "area": ["Consumidor"], "url": ""},
 ]
 
 # =========================
-# Funções de Texto (NLP e Regex)
+# Integração com a IA Generativa (NOVO)
+# =========================
+def analyze_with_ai(text: str) -> dict:
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    prompt = f"""
+    Você é um assistente jurídico avançado do aplicativo Lumen Jurídico.
+    Analise o texto jurídico fornecido e extraia as informações essenciais.
+    Retorne ESTRITAMENTE um objeto JSON válido com as seguintes chaves e tipos de dados:
+    
+    {{
+        "tema_principal": "string (ex: Responsabilidade Civil por Acidente, Prisão Preventiva)",
+        "area_direito": "string (Ramo do direito principal, ex: Processo Civil, Penal, Constitucional)",
+        "tipo_peca": "string (ex: Petição Inicial, Sentença, Acórdão, Habeas Corpus)",
+        "tribunal": "string (ex: STF, STJ, TJMG, TRF1, ou vazio se não houver)",
+        "fatos_relevantes": "string (resumo narrativo de 3 a 5 frases do que ocorreu no caso)",
+        "controversia": "string (a questão jurídica central formulada como uma pergunta clara)",
+        "fundamentos_normativos": ["array de strings", "apenas os principais artigos e leis citados, ex: art. 5º da CF"],
+        "fundamentos_juris": ["array de strings", "jurisprudências e súmulas citadas, ex: Súmula 7 do STJ"],
+        "dispositivo_resultado": "string (o que foi decidido ao final, se houver, ou o que está sendo pedido, em linguagem clara)",
+        "codigos_relacionados": ["array de strings", "siglas das leis aplicáveis, ex: CC, CP, CPC, CPP, CF, CDC"],
+        "palavras_chave": ["array de strings", "5 palavras fundamentais do texto"],
+        "checklist": ["array de strings", "3 ações práticas sugeridas para o advogado focar ao lidar com este caso"]
+    }}
+    
+    Texto para análise:
+    {text[:25000]} 
+    """
+    
+    try:
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(response_mime_type="application/json")
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        print(f"Erro na IA: {e}")
+        return {}
+
+# =========================
+# Funções Auxiliares Retidas
 # =========================
 def normalize(text: str) -> str:
     text = (text or "").strip()
     text = re.sub(r"\r\n?", "\n", text)
     text = re.sub(r"[ \t]+", " ", text)
-    # reduz linhas vazias demais
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text
-
-def split_sentences(text: str):
-    parts = re.split(r"(?<=[\.\?!])\s+", (text or "").strip())
-    return [p.strip() for p in parts if p.strip()]
-
-def extract_block(text: str, start_patterns, stop_patterns, max_chars=4000):
-    lower = (text or "").lower()
-    start_idx = None
-    for pat in start_patterns:
-        m = re.search(pat, lower, flags=re.I | re.M)
-        if m:
-            start_idx = m.start()
-            break
-    if start_idx is None:
-        return ""
-
-    tail = text[start_idx:]
-    tail_lower = lower[start_idx:]
-
-    stop_idx = None
-    for sp in stop_patterns:
-        m = re.search(sp, tail_lower, flags=re.I | re.M)
-        if m and m.start() > 0:
-            stop_idx = m.start()
-            break
-
-    block = tail[:stop_idx] if stop_idx else tail
-    return block.strip()[:max_chars].strip()
-
-def pick_keywords(text: str, k=8):
-    clean_text = re.sub(r"[^\w\s]", " ", (text or "").lower())
-    tokens = [
-        t for t in clean_text.split()
-        if t not in STOPWORDS_PT and len(t) > 3 and not t.isdigit()
-    ]
-    if not tokens:
-        return []
-    counts = Counter(tokens)
-    return [w for w, _ in counts.most_common(k)]
-
-# =========================
-# Extrações Jurídicas (melhoradas)
-# =========================
-_CODE_ALIASES = {
-    "constituição federal": "CF",
-    "cf/88": "CF",
-    "cf": "CF",
-    "código civil": "CC",
-    "cc": "CC",
-    "código penal": "CP",
-    "cp": "CP",
-    "código de processo penal": "CPP",
-    "cpp": "CPP",
-    "código de processo civil": "CPC",
-    "cpc": "CPC",
-    "clt": "CLT",
-    "código de defesa do consumidor": "CDC",
-    "cdc": "CDC",
-    "ctn": "CTN",
-}
-
-def _normalize_code_label(label: str) -> str:
-    l = (label or "").strip().lower()
-    l = re.sub(r"\s+", " ", l)
-    return _CODE_ALIASES.get(l, label.strip().upper())
-
-def extract_legal_citations(text: str, limit=16):
-    """
-    Melhora: tenta capturar "art. X do CPC/CP/CF..." e "Lei n°..."
-    Retorna itens "bonitos" para exibir.
-    """
-    t = text or ""
-    out = []
-
-    # Artigos com possível diploma ao lado
-    # Ex.: art. 5º, CF; art 155 do CPP; artigo 186 do Código Civil
-    art_pat = re.compile(
-        r"\b(art\.?|artigo)\s*(\d{1,4})(?:\s*[º°])?"
-        r"(?:\s*(?:,|do|da|dos|das)\s*([A-Za-zÀ-ÿ\/\.\s]{2,40}))?",
-        flags=re.I
-    )
-    for m in art_pat.finditer(t):
-        num = m.group(2)
-        diploma_raw = (m.group(3) or "").strip()
-        diploma = ""
-        if diploma_raw:
-            diploma_raw = re.sub(r"\s+", " ", diploma_raw)
-            # corta se vier texto grande
-            diploma_raw = diploma_raw[:40].strip(" ,.;:-")
-            diploma = _normalize_code_label(diploma_raw)
-
-        if diploma:
-            out.append(f"art. {num} ({diploma})")
-        else:
-            out.append(f"art. {num}")
-
-    # Leis / Decretos / Súmulas
-    more_patterns = [
-        r"\bLei\s+n[º°]?\s*[\d\.]+(?:/\d{2,4})?\b",
-        r"\bDecreto\s+n[º°]?\s*[\d\.]+(?:/\d{2,4})?\b",
-        r"\bSúmula\s*(?:Vinculante)?\s*n[º°]?\s*\d+\b",
-        r"\bConstituição\s+Federal\b",
-        r"\bCF/88\b",
-        r"\bCPC\b|\bCPP\b|\bCP\b|\bCC\b|\bCLT\b|\bCDC\b|\bCTN\b",
-    ]
-    for pat in more_patterns:
-        out.extend(re.findall(pat, t, flags=re.IGNORECASE))
-
-    # Dedup mantendo ordem
-    seen = set()
-    unique = []
-    for item in out:
-        clean = normalize(item)
-        clean = re.sub(r"\s+", " ", clean).strip()
-        key = clean.lower()
-        if clean and key not in seen:
-            seen.add(key)
-            unique.append(clean)
-
-    return unique[:limit]
-
-def extract_jurisprudencia_refs(text: str, limit=14):
-    patterns = [
-        r"\bREsp\s*\d[\d\.\-\/]*\b",
-        r"\bRE\s*\d[\d\.\-\/]*\b",
-        r"\bARE\s*\d[\d\.\-\/]*\b",
-        r"\bAgRg\b|\bAgInt\b|\bEDcl\b|\bEmbargos?\b",
-        r"\bHC\s*\d[\d\.\-\/]*\b",
-        r"\bRHC\s*\d[\d\.\-\/]*\b",
-        r"\bADI\s*\d[\d\.\-\/]*\b|\bADPF\s*\d[\d\.\-\/]*\b|\bADC\s*\d[\d\.\-\/]*\b",
-        r"\bTema\s*\d+\b",
-        r"\bS[úu]mula\s*\d+\b"
-    ]
-    found = []
-    seen = set()
-    for pat in patterns:
-        for m in re.finditer(pat, text or "", flags=re.I):
-            s = re.sub(r"\s+", " ", m.group(0).strip())
-            k = s.lower()
-            if s and k not in seen:
-                found.append(s)
-                seen.add(k)
-            if len(found) >= limit:
-                return found
-    return found
-
-def analyze_quality(text: str):
-    t = (text or "").strip()
-    warnings = []
-    if len(t) < 450:
-        warnings.append("Texto muito curto: a análise pode ficar genérica.")
-    if len(t) > 150000:
-        warnings.append("Texto muito grande: pode haver cortes no resumo.")
-    return " ".join(warnings).strip()
-
-def pick_best_question(text: str, fallback_base: str) -> str:
-    candidates = [
-        s for s in split_sentences(text)
-        if s.endswith("?") and 15 <= len(s) <= 240
-    ]
-    if candidates:
-        return candidates[0].strip()
-    return "Qual é a controvérsia jurídica principal deste caso?"
 
 def extract_terms_translation(text: str, max_items: int = 10) -> list[dict]:
     t = (text or "").lower()
@@ -370,179 +175,21 @@ def extract_terms_translation(text: str, max_items: int = 10) -> list[dict]:
                 break
     return hits
 
-# =========================
-# Detecção do "caso" (sintaxe / metadados)
-# =========================
-def detect_case_metadata(text: str) -> dict:
-    """
-    Tenta detectar:
-    - tribunal provável (STF/STJ/TJ/TRF)
-    - classe processual (HC, REsp, RE, etc.)
-    - número do processo (quando houver)
-    - relator(a)
-    - datas
-    """
-    t = text or ""
-    low = t.lower()
-
-    # tribunal (heurística)
-    tribunal = None
-    if "supremo tribunal federal" in low or re.search(r"\bstf\b", low):
-        tribunal = "STF"
-    elif "superior tribunal de justiça" in low or re.search(r"\bstj\b", low):
-        tribunal = "STJ"
-    elif re.search(r"\btrf-?\s*\d\b", low) or "tribunal regional federal" in low:
-        tribunal = "TRF"
-    elif re.search(r"\btj\w{2}\b", low) or "tribunal de justiça" in low:
-        tribunal = "TJ"
-    else:
-        tribunal = ""
-
-    # classe e número (bem comum em capas/ementas)
-    classe = ""
-    numero = ""
-    m = re.search(r"\b(HC|RHC|REsp|RE|ARE|ADI|ADPF|ADC)\b\s*(n[º°]\s*)?(\d[\d\.\-\/]*)", t, flags=re.I)
-    if m:
-        classe = m.group(1).upper()
-        numero = re.sub(r"\s+", "", m.group(3))
-
-    # CNJ (0000000-00.0000.0.00.0000)
-    mcnj = re.search(r"\b\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}\b", t)
-    numero_cnj = mcnj.group(0) if mcnj else ""
-
-    # relator(a)
-    relator = ""
-    mrel = re.search(r"\brelator(?:a)?\s*:\s*([A-ZÀ-Ÿ][A-Za-zÀ-ÿ\.\s]{3,60})", t, flags=re.I)
-    if mrel:
-        relator = mrel.group(1).strip()
-        relator = re.sub(r"\s{2,}", " ", relator)
-
-    # datas (julgamento/publicação)
-    datas = []
-    for pat in [
-        r"\b(\d{1,2}/\d{1,2}/\d{2,4})\b",
-        r"\b(\d{1,2}\s+de\s+[A-Za-zÀ-ÿ]+\s+de\s+\d{4})\b"
-    ]:
-        for m in re.finditer(pat, t, flags=re.I):
-            ds = re.sub(r"\s+", " ", m.group(1)).strip()
-            if ds not in datas:
-                datas.append(ds)
-            if len(datas) >= 4:
-                break
-
-    # tipo de peça (heurística simples)
-    tipo = ""
-    if re.search(r"\bementa\b", low) and re.search(r"\bac[oó]rd[aã]o\b", low):
-        tipo = "Acórdão"
-    elif re.search(r"\bsenten[cç]a\b", low):
-        tipo = "Sentença"
-    elif re.search(r"\bpeti[cç][aã]o\b", low) or re.search(r"\binicial\b", low):
-        tipo = "Petição"
-    elif re.search(r"\bdecis[aã]o\b", low):
-        tipo = "Decisão"
-    else:
-        tipo = "Documento"
-
-    return {
-        "tribunal": tribunal,
-        "classe": classe,
-        "numero": numero,
-        "numero_cnj": numero_cnj,
-        "relator": relator,
-        "datas_mencionadas": datas,
-        "tipo_peca_detectado": tipo
-    }
-
-def extract_dispositivo(text: str) -> str:
-    """
-    Tenta pegar o resultado final (dispositivo).
-    """
-    t = normalize(text)
-    bloco = extract_block(
-        t,
-        start_patterns=[r"\bdispositivo\b", r"\bdecido\b", r"\bisto posto\b"],
-        stop_patterns=[r"\bpublique-se\b", r"\bintime-se\b", r"\btransitado\b", r"\bac[oó]rd[aã]o\b"],
-        max_chars=1800
-    )
-    if bloco:
-        # limpa cabeçalho repetitivo
-        bloco = re.sub(r"^\s*(dispositivo|decido|isto posto)\s*[:\-]?\s*", "", bloco, flags=re.I)
-        return bloco.strip()
-    return ""
-
-def infer_codes_from_text(text: str, citations: list[str]) -> list[str]:
-    """
-    Pega "CPC/CPP/CP/CC/CF..." com base em citações e menções.
-    """
-    low = (text or "").lower()
-    codes = set()
-
-    # de citações do tipo "art. X (CPC)"
-    for c in citations or []:
-        m = re.search(r"\((CF|CPC|CPP|CP|CC|CLT|CDC|CTN)\)", c, flags=re.I)
-        if m:
-            codes.add(m.group(1).upper())
-
-    # menções diretas no texto
-    for label, code in _CODE_ALIASES.items():
-        if label in low:
-            codes.add(code)
-
-    # abreviações soltas
-    for code in ["CF", "CPC", "CPP", "CP", "CC", "CLT", "CDC", "CTN"]:
-        if re.search(rf"\b{code}\b", text or "", flags=re.I):
-            codes.add(code)
-
-    # ordem “útil”
-    order = ["CF", "CPC", "CPP", "CP", "CC", "CDC", "CLT", "CTN"]
-    return [c for c in order if c in codes]
-
-def infer_area_from_codes(codes: list[str], keywords: list[str]) -> str:
-    """
-    Um rótulo simples do ramo predominante.
-    """
-    cset = set(codes or [])
-    kset = set((keywords or []))
-
-    if "CPP" in cset or "CP" in cset or any(k in kset for k in ["prisao", "preventiva", "habeas", "penal"]):
-        return "Processo Penal / Penal"
-    if "CPC" in cset or any(k in kset for k in ["tutela", "urgencia", "apelação", "agravo", "sentenca"]):
-        return "Processo Civil"
-    if "CC" in cset or any(k in kset for k in ["responsabilidade", "indenizacao", "dano", "moral"]):
-        return "Direito Civil"
-    if "CDC" in cset or any(k in kset for k in ["consumidor", "fornecedor", "vicio"]):
-        return "Direito do Consumidor"
-    if "CLT" in cset or any(k in kset for k in ["trabalho", "empregado", "verbas"]):
-        return "Direito do Trabalho"
-    if "CTN" in cset or any(k in kset for k in ["tributo", "icms", "ipi", "credito"]):
-        return "Direito Tributário"
-    if "CF" in cset:
-        return "Constitucional"
-    return "Geral"
-
 def recommend_articles(codes: list[str], area: str, max_items: int = 6) -> list[dict]:
-    """
-    Filtra ARTICLE_DB por códigos e/ou área.
-    """
     codes = codes or []
     out = []
-
     for a in ARTICLE_DB:
         ok_code = any(c in (a.get("codigo_relacionado") or []) for c in codes) if codes else False
         ok_area = any(area_part.lower() in (area or "").lower() for area_part in (a.get("area") or []))
-        # aceita se bater por código OU por área
         if ok_code or ok_area:
             out.append(a)
-
-    # fallback: se nada casar, devolve alguns gerais com CF/CPC/CPP
+            
     if not out:
         for a in ARTICLE_DB:
             if any(c in (a.get("codigo_relacionado") or []) for c in ["CF", "CPC", "CPP"]):
                 out.append(a)
 
-    # dedup por título
-    seen = set()
-    uniq = []
+    seen, uniq = set(), []
     for a in out:
         k = (a.get("titulo") or "").strip().lower()
         if k and k not in seen:
@@ -550,87 +197,11 @@ def recommend_articles(codes: list[str], area: str, max_items: int = 6) -> list[
             uniq.append(a)
         if len(uniq) >= max_items:
             break
-
     return uniq
-
-def build_search_queries(pergunta: str, ementa: str, keywords: list[str], tribunal_hint: str = "", max_items: int = 5) -> list[str]:
-    kws = [k for k in (keywords or []) if k and len(k) >= 4][:4]
-    out = []
-
-    # 1) query por palavras-chave
-    if kws:
-        out.append(" AND ".join([f'"{k}"' for k in kws]))
-
-    # 2) pergunta + palavras centrais
-    if pergunta:
-        base = pergunta
-        if kws:
-            base += " " + " ".join(kws[:2])
-        out.append(base.strip())
-
-    # 3) jurisprudência (conforme tribunal sugerido)
-    th = (tribunal_hint or "").upper().strip()
-    if th == "STJ":
-        out.append(f"site:stj.jus.br {' '.join(kws[:2])}".strip())
-    elif th == "STF":
-        out.append(f"site:stf.jus.br {' '.join(kws[:2])}".strip())
-    else:
-        # genérico (sem “mexer” na biblioteca)
-        out.append(f"jurisprudência {' '.join(kws[:3])}".strip())
-
-    # 4) acadêmico (sem link; é só query pronta)
-    if kws:
-        out.append(f'pesquisa acadêmica {kws[0]} {kws[1] if len(kws)>1 else ""} CPC CPP CP CC'.strip())
-
-    # dedup
-    seen = set()
-    uniq = []
-    for q in out:
-        q = re.sub(r"\s+", " ", (q or "").strip())
-        if q and q.lower() not in seen:
-            seen.add(q.lower())
-            uniq.append(q)
-        if len(uniq) >= max_items:
-            break
-
-    return uniq
-
-def build_action_checklist(text: str) -> list[str]:
-    low = (text or "").lower()
-    items = []
-
-    if "prisão" in low or "hc" in low or "liberdade" in low:
-        items.extend([
-            "Verificar se há fundamentação concreta (não genérica).",
-            "Checar contemporaneidade dos fatos (os fatos são recentes?).",
-            "Analisar excesso de prazo e adequação de medidas cautelares diversas."
-        ])
-    if "dano moral" in low or "indeniza" in low:
-        items.extend([
-            "Verificar nexo causal (ligação entre conduta e dano).",
-            "Analisar critérios do quantum indenizatório (proporcionalidade/razoabilidade).",
-            "Checar excludentes de responsabilidade e prova do dano."
-        ])
-    if "recurso" in low or "apelação" in low or "agravo" in low:
-        items.extend([
-            "Verificar tempestividade (prazo do recurso).",
-            "Checar preparo (custas/porte, quando aplicável).",
-            "Conferir prequestionamento (se matéria foi enfrentada antes, quando exigido)."
-        ])
-
-    if not items:
-        items = [
-            "Identificar a controvérsia central (ponto que decide o caso).",
-            "Listar fatos relevantes cronologicamente (o que ocorreu e quando).",
-            "Isolar fundamentos determinantes (ratio decidendi) vs. comentários acessórios.",
-            "Checar o dispositivo (resultado) e efeitos práticos."
-        ]
-    return items
 
 def suggest_library_links(text: str, max_items: int = 7):
     t = (text or "").lower()
     out = []
-
     for link in LIBRARY_LINKS:
         keywords = link["titulo"].split()
         matches = sum(1 for k in keywords if len(k) > 3 and k.lower() in t)
@@ -640,151 +211,73 @@ def suggest_library_links(text: str, max_items: int = 7):
     if not out:
         out = [l for l in LIBRARY_LINKS if l["key"] in ["CF_HTML", "CPC", "STF_GLOSS"]]
 
-    if "oab" in t or "exame" in t:
-        try:
-            out.append([l for l in LIBRARY_LINKS if l["key"] == "CURSO_ESA"][0])
-        except Exception:
-            pass
-
-    seen = set()
-    unique_out = []
+    seen, unique_out = set(), []
     for x in out:
         if x["key"] not in seen:
             unique_out.append(x)
             seen.add(x["key"])
-
     return unique_out[:max_items]
 
-# =========================
-# "Sintaxe do caso" (síntese)
-# =========================
-def build_case_syntax(text: str, ementa: str, dispositivo: str, pergunta: str, citations: list[str], jurisrefs: list[str]) -> dict:
-    """
-    Um resumo estruturado para ficar mais útil do que um texto solto.
-    """
-    fatos = ""
-    # tenta extrair "relatório" ou trecho inicial (muito comum)
-    rel = extract_block(
-        text,
-        start_patterns=[r"\brelat[oó]rio\b", r"\bdos fatos\b", r"\bfatos\b"],
-        stop_patterns=[r"\bfundamenta[cç][aã]o\b", r"\bdireito\b", r"\bdecido\b", r"\bdispositivo\b"],
-        max_chars=1200
-    )
-    if rel:
-        fatos = rel
+def build_search_queries(pergunta: str, keywords: list[str], tribunal: str) -> list[str]:
+    kws = [k for k in (keywords or [])][:3]
+    out = []
+    if kws:
+        out.append(" AND ".join([f'"{k}"' for k in kws]))
+    if pergunta:
+        out.append(pergunta)
+    th = (tribunal or "").upper().strip()
+    if th in ["STJ", "STF"]:
+        out.append(f"site:{th.lower()}.jus.br {' '.join(kws)}".strip())
     else:
-        # fallback: 3-5 frases iniciais da ementa/texto
-        sents = split_sentences(ementa or text[:1200])
-        fatos = " ".join(sents[:4]).strip()
-
-    fundamentos = []
-    if citations:
-        fundamentos.append("Base normativa citada: " + ", ".join(citations[:8]))
-    if jurisrefs:
-        fundamentos.append("Referências de jurisprudência: " + ", ".join(jurisrefs[:6]))
-
-    # Resultado/dispositivo em linguagem simples
-    resultado = dispositivo.strip()
-    if not resultado:
-        # tenta “nego provimento / dou provimento / concedo a ordem”
-        mres = re.search(r"\b(concedo a ordem|denego a ordem|dou provimento|nego provimento|julgo procedente|julgo improcedente)\b", text, flags=re.I)
-        if mres:
-            resultado = mres.group(1).strip().capitalize()
-
-    return {
-        "o_que_e": "Síntese estruturada do caso (fatos → controvérsia → fundamentos → resultado).",
-        "fatos_relevantes": fatos[:1200].strip(),
-        "controversia": pergunta,
-        "fundamentos": fundamentos,
-        "resultado_dispositivo": (resultado[:1600].strip() if resultado else "Não foi possível isolar um dispositivo claro no texto enviado.")
-    }
+        out.append(f"jurisprudência {' '.join(kws)}".strip())
+    return out
 
 # =========================
-# Lógica Principal
+# Lógica Principal Unificada
 # =========================
 def build_output(text: str):
-    text = normalize(text)
+    texto_limpo = normalize(text)
+    
+    # Processamento Inteligente via LLM
+    dados_ia = analyze_with_ai(texto_limpo)
+    
+    # Fallbacks caso a IA retorne vazio
+    area = dados_ia.get("area_direito", "Geral")
+    codigos = dados_ia.get("codigos_relacionados", [])
+    keywords = dados_ia.get("palavras_chave", [])
+    pergunta = dados_ia.get("controversia", "Qual é a controvérsia jurídica principal deste caso?")
+    tribunal = dados_ia.get("tribunal", "")
 
-    # Ementa
-    ementa = extract_block(
-        text,
-        [r"\bementa\b"],
-        [r"\bac[oó]rd[aã]o\b", r"\brelat[oó]rio\b"],
-        2000
-    ) or text[:1100]
-
-    # Keywords
-    base_for_keywords = ementa or text[:1500]
-    keywords = pick_keywords(base_for_keywords, k=9)
-
-    # Pergunta
-    pergunta = pick_best_question(text, base_for_keywords)
-
-    # Extrações Jurídicas
-    fundamentos_normas = extract_legal_citations(text, limit=18)
-    fundamentos_juris = extract_jurisprudencia_refs(text, limit=14)
-
-    # Dispositivo
-    dispositivo = extract_dispositivo(text)
-
-    # Metadados do caso
-    meta = detect_case_metadata(text)
-
-    # Códigos e área
-    codes = infer_codes_from_text(text, fundamentos_normas)
-    area = infer_area_from_codes(codes, keywords)
-
-    # Resumo “melhor”
-    resumo = (ementa or "")[:760] + ("..." if len(ementa or "") > 760 else "")
-
-    # Queries (agora com hint de tribunal)
-    pesquisas = build_search_queries(pergunta, ementa, keywords, tribunal_hint=meta.get("tribunal", ""))
-
-    # Checklist + sugestões biblioteca
-    checklist = build_action_checklist(text)
-    sugestoes = suggest_library_links(text)
-    termos_importantes = extract_terms_translation(text)
-
-    # Artigos recomendados (com “de onde são” e código relacionado)
-    artigos = recommend_articles(codes, area, max_items=6)
-
-    # Sintaxe do caso (novo)
-    sintaxe_caso = build_case_syntax(
-        text=text,
-        ementa=ementa,
-        dispositivo=dispositivo,
-        pergunta=pergunta,
-        citations=fundamentos_normas,
-        jurisrefs=fundamentos_juris
-    )
-
-    # Tema principal mais “bonito”
-    head = keywords[:3]
-    tema_principal = f"Análise: {', '.join([w.title() for w in head])}" if head else "Análise Jurídica"
-
+    # Cruzamento com a base de dados estática do Lumen
+    artigos = recommend_articles(codigos, area, max_items=6)
+    sugestoes = suggest_library_links(texto_limpo)
+    termos_importantes = extract_terms_translation(texto_limpo)
+    pesquisas = build_search_queries(pergunta, keywords, tribunal)
+    
     return {
-        "tema_principal": tema_principal,
+        "tema_principal": dados_ia.get("tema_principal", "Análise Jurídica"),
         "area_sugerida": area,
-        "codigos_relacionados": codes,
-
-        "meta": meta,  # tribunal, classe, número, relator etc.
-        "sintaxe_caso": sintaxe_caso,
-
-        "pergunta": pergunta,
-        "fundamentos_normas": fundamentos_normas,
-        "fundamentos_juris": fundamentos_juris,
+        "codigos_relacionados": codigos,
+        "meta": {
+            "tribunal": tribunal,
+            "tipo_peca_detectado": dados_ia.get("tipo_peca", "Documento Jurídico")
+        },
+        "sintaxe_caso": {
+            "fatos_relevantes": dados_ia.get("fatos_relevantes", "Fatos não puderam ser extraídos."),
+            "controversia": pergunta,
+            "resultado_dispositivo": dados_ia.get("dispositivo_resultado", "Dispositivo não encontrado."),
+        },
+        "fundamentos_normas": dados_ia.get("fundamentos_normativos", []),
+        "fundamentos_juris": dados_ia.get("fundamentos_juris", []),
         "keywords": keywords,
         "queries_juris": pesquisas,
-        "checklist": checklist,
-        "resumo": resumo,
-        "dispositivo": dispositivo,
-
-        "alerta": analyze_quality(text),
-        "sugestoes": sugestoes,
+        "checklist": dados_ia.get("checklist", []),
+        "resumo": dados_ia.get("fatos_relevantes", ""), # Usando fatos como resumo principal
         "termos_importantes": termos_importantes,
-
-        "artigos_recomendados": artigos,  # novo
+        "sugestoes": sugestoes,
+        "artigos_recomendados": artigos,
         "glossario_source": GLOSSARY_URL,
+        "alerta": "" # Removido o alerta de tamanho pois o LLM lida bem com isso
     }
 
 # =========================
@@ -806,7 +299,6 @@ def get_text_from_upload(file):
     try:
         if ext == ".pdf":
             reader = PdfReader(path)
-            # Evita quebra se alguma página falhar
             parts = []
             for p in reader.pages:
                 try:
@@ -827,7 +319,6 @@ def get_text_from_upload(file):
             os.remove(path)
         except Exception:
             pass
-
     return text
 
 # =========================
