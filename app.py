@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import unicodedata
 from datetime import datetime
 from typing import Any, Optional
 from uuid import uuid4
@@ -260,6 +261,18 @@ LIBRARY_LINKS = [
         "tipo": "Penal Especial",
     },
     {
+        "key": "STJ_JURIS",
+        "titulo": "STJ — Pesquisa de Jurisprudência",
+        "url": "https://scon.stj.jus.br/SCON/",
+        "tipo": "Jurisprudência",
+    },
+    {
+        "key": "STF_JURIS",
+        "titulo": "STF — Pesquisa de Jurisprudência",
+        "url": "https://jurisprudencia.stf.jus.br/pages/search",
+        "tipo": "Jurisprudência",
+    },
+    {
         "key": "STF_GLOSS",
         "titulo": "Glossário Jurídico STF",
         "url": GLOSSARY_URL,
@@ -293,7 +306,16 @@ ARTICLE_DB = [
         "onde": "Revista de Processo (RT)",
         "ano": "2016",
         "codigo_relacionado": ["CPC"],
-        "area": ["Processo Civil", "Precedentes"],
+        "area": ["Precedentes", "Processo Civil"],
+        "requer_palavra_chave": True,
+        "palavras_chave": [
+            "precedente",
+            "precedentes",
+            "ratio decidendi",
+            "distinguishing",
+            "overruling",
+            "art. 927",
+        ],
         "url": "",
     },
     {
@@ -302,7 +324,16 @@ ARTICLE_DB = [
         "onde": "Doutrina processual",
         "ano": "2015-2018",
         "codigo_relacionado": ["CPC"],
-        "area": ["Processo Civil"],
+        "area": ["Precedentes", "Processo Civil"],
+        "requer_palavra_chave": True,
+        "palavras_chave": [
+            "precedente",
+            "precedentes",
+            "jurisprudência",
+            "ratio decidendi",
+            "art. 926",
+            "art. 927",
+        ],
         "url": "",
     },
     {
@@ -312,15 +343,31 @@ ARTICLE_DB = [
         "ano": "2019-2023",
         "codigo_relacionado": ["CPP", "CF"],
         "area": ["Processo Penal", "Prisão"],
+        "requer_palavra_chave": True,
+        "palavras_chave": [
+            "prisão preventiva",
+            "prisão cautelar",
+            "periculum libertatis",
+            "liberdade provisória",
+            "custódia cautelar",
+        ],
         "url": "",
     },
     {
-        "titulo": "Responsabilidade civil: nexo causal, dano",
+        "titulo": "Responsabilidade civil: nexo causal e dano",
         "autores": "Sérgio Cavalieri Filho",
         "onde": "Doutrina civil",
         "ano": "2010-2022",
-        "codigo_relacionado": ["CC", "CF"],
-        "area": ["Civil", "Danos"],
+        "codigo_relacionado": ["CC", "CDC", "CF"],
+        "area": ["Direito Civil", "Consumidor", "Responsabilidade Civil"],
+        "palavras_chave": [
+            "responsabilidade civil",
+            "responsabilidade objetiva",
+            "nexo causal",
+            "dano",
+            "fraude bancária",
+            "fortuito interno",
+        ],
         "url": "",
     },
     {
@@ -329,7 +376,15 @@ ARTICLE_DB = [
         "onde": "Doutrina constitucional",
         "ano": "2014-2021",
         "codigo_relacionado": ["CF", "CPC", "CPP"],
-        "area": ["Constitucional"],
+        "area": ["Constitucional", "Teoria da Decisão"],
+        "requer_palavra_chave": True,
+        "palavras_chave": [
+            "fundamentação",
+            "motivação",
+            "decisão judicial",
+            "art. 489",
+            "dever de fundamentar",
+        ],
         "url": "",
     },
     {
@@ -338,19 +393,37 @@ ARTICLE_DB = [
         "onde": "Doutrina processual civil",
         "ano": "2016-2022",
         "codigo_relacionado": ["CPC"],
-        "area": ["Processo Civil"],
+        "area": ["Processo Civil", "Tutela Provisória"],
+        "palavras_chave": [
+            "tutela de urgência",
+            "tutela provisória",
+            "art. 300",
+            "probabilidade do direito",
+            "perigo de dano",
+            "risco ao resultado útil",
+        ],
         "url": "",
     },
     {
         "titulo": "Vulnerabilidade e proteção do consumidor",
         "autores": "Cláudia Lima Marques",
-        "onde": "Doutrina consumidor",
+        "onde": "Doutrina consumerista",
         "ano": "2000-2020",
         "codigo_relacionado": ["CDC", "CF"],
         "area": ["Consumidor"],
+        "palavras_chave": [
+            "consumidor",
+            "vulnerabilidade",
+            "relação de consumo",
+            "serviço bancário",
+            "inversão do ônus da prova",
+            "art. 6º",
+            "art. 14",
+        ],
         "url": "",
     },
 ]
+
 
 
 # ==========================================================
@@ -377,7 +450,7 @@ ANALYSIS_SCHEMA = {
         },
         "fatos_relevantes": {
             "type": "string",
-            "description": "Síntese fiel dos fatos expressamente presentes no texto.",
+            "description": "Síntese fiel, em frases completas e sem reticências, dos fatos expressamente presentes no texto.",
         },
         "controversia": {
             "type": "string",
@@ -400,7 +473,7 @@ ANALYSIS_SCHEMA = {
         "codigos_relacionados": {
             "type": "array",
             "items": {"type": "string"},
-            "description": "Siglas de diplomas normativos relacionados e identificáveis.",
+            "description": "Siglas dos principais diplomas normativos expressamente citados no documento.",
         },
         "palavras_chave": {
             "type": "array",
@@ -545,17 +618,24 @@ def normalize_ai_data(data: dict) -> dict:
         "dispositivo_resultado": clean_string(
             data.get("dispositivo_resultado")
         ),
-        "codigos_relacionados": [
-            item.upper()
-            for item in clean_string_list(
-                data.get("codigos_relacionados"), max_items=15
-            )
-        ],
+        "codigos_relacionados": clean_string_list(
+            data.get("codigos_relacionados"), max_items=15
+        ),
         "palavras_chave": clean_string_list(
             data.get("palavras_chave"), max_items=5
         ),
-        "checklist": clean_string_list(data.get("checklist"), max_items=5),
+        "checklist": clean_string_list(data.get("checklist"), max_items=3),
     }
+
+    # Padroniza as siglas jurídicas sem criar códigos que não vieram da IA.
+    normalized_codes = []
+    seen_codes = set()
+    for code in normalized["codigos_relacionados"]:
+        canonical = canonical_legal_code(code)
+        if canonical and canonical not in seen_codes:
+            seen_codes.add(canonical)
+            normalized_codes.append(canonical)
+    normalized["codigos_relacionados"] = normalized_codes
 
     # Uma resposta sem nenhum conteúdo essencial não deve ser apresentada
     # nem salva como se fosse uma análise válida.
@@ -703,14 +783,19 @@ REGRAS OBRIGATÓRIAS:
    citados no texto. Se não houver, retorne uma lista vazia.
 5. Em "fundamentos_juris", liste somente súmulas, temas, precedentes ou julgados
    expressamente citados. Se não houver, retorne uma lista vazia.
-6. Diferencie decisão de pedido: se o documento for uma petição, informe o pedido;
+6. Em "codigos_relacionados", informe somente as siglas dos principais diplomas
+   normativos expressamente citados no documento. Não inclua códigos apenas por
+   associação temática.
+7. Diferencie decisão de pedido: se o documento for uma petição, informe o pedido;
    se for uma decisão, sentença ou acórdão, informe o que foi decidido.
-7. Use linguagem clara, técnica e prudente.
-8. Em "checklist", apresente três orientações de leitura e conferência do
-   documento, e não estratégias processuais ou aconselhamento profissional.
-9. Quando uma informação não puder ser identificada com segurança, diga isso de
-   forma explícita, sem preencher a lacuna por suposição.
-10. Retorne somente o objeto JSON solicitado, sem comentários adicionais.
+8. Em "fatos_relevantes", produza uma síntese fiel, com frases completas. Não use
+   reticências e não interrompa a última frase.
+9. Use linguagem clara, técnica e prudente.
+10. Em "checklist", apresente exatamente três orientações de leitura e conferência
+    do documento, e não estratégias processuais ou aconselhamento profissional.
+11. Quando uma informação não puder ser identificada com segurança, diga isso de
+    forma explícita, sem preencher a lacuna por suposição.
+12. Retorne somente o objeto JSON solicitado, sem comentários adicionais.
 
 <documento>
 {text}
@@ -794,43 +879,182 @@ def extract_terms_translation(text: str, max_items: int = 10) -> list[dict]:
     return hits
 
 
+def normalize_for_match(value: Any) -> str:
+    """Normaliza textos para comparação sem depender de bibliotecas extras."""
+    value = str(value or "")
+    value = unicodedata.normalize("NFKD", value)
+    value = "".join(char for char in value if not unicodedata.combining(char))
+    value = value.casefold()
+    value = re.sub(r"[^a-z0-9]+", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def contains_normalized_term(text: str, term: str) -> bool:
+    normalized_text = f" {normalize_for_match(text)} "
+    normalized_term = normalize_for_match(term)
+    return bool(normalized_term) and f" {normalized_term} " in normalized_text
+
+
+def canonical_area_tags(value: str) -> set[str]:
+    """Converte descrições livres de áreas em categorias comparáveis."""
+    normalized = normalize_for_match(value)
+    tags = set()
+
+    if any(term in normalized for term in ["consumidor", "consumerista"]):
+        tags.add("consumidor")
+
+    if any(term in normalized for term in ["processo civil", "processual civil"]):
+        tags.add("processo_civil")
+
+    if "direito civil" in normalized or normalized == "civil":
+        tags.add("direito_civil")
+
+    if any(term in normalized for term in ["processo penal", "processual penal"]):
+        tags.add("processo_penal")
+
+    if "direito penal" in normalized or normalized == "penal":
+        tags.add("direito_penal")
+
+    if "constitucional" in normalized:
+        tags.add("constitucional")
+
+    if "administrativ" in normalized:
+        tags.add("administrativo")
+
+    if "trabalh" in normalized:
+        tags.add("trabalho")
+
+    if "tribut" in normalized:
+        tags.add("tributario")
+
+    if "precedent" in normalized:
+        tags.add("precedentes")
+
+    if "responsabilidade civil" in normalized:
+        tags.add("responsabilidade_civil")
+
+    if any(term in normalized for term in ["tutela provisoria", "tutela de urgencia"]):
+        tags.add("tutela_provisoria")
+
+    return tags
+
+
+CODE_ALIASES = {
+    "CF": "CF",
+    "CF 88": "CF",
+    "CF/88": "CF",
+    "CONSTITUICAO FEDERAL": "CF",
+    "CONSTITUICAO DA REPUBLICA": "CF",
+    "CC": "CC",
+    "CODIGO CIVIL": "CC",
+    "CPC": "CPC",
+    "CODIGO DE PROCESSO CIVIL": "CPC",
+    "CP": "CP",
+    "CODIGO PENAL": "CP",
+    "CPP": "CPP",
+    "CODIGO DE PROCESSO PENAL": "CPP",
+    "CLT": "CLT",
+    "CDC": "CDC",
+    "CODIGO DE DEFESA DO CONSUMIDOR": "CDC",
+    "CTN": "CTN",
+    "CODIGO TRIBUTARIO NACIONAL": "CTN",
+    "ECA": "ECA",
+    "ESTATUTO DA CRIANCA E DO ADOLESCENTE": "ECA",
+    "LIA": "LIA",
+    "LEI DE IMPROBIDADE ADMINISTRATIVA": "LIA",
+    "LIC": "LIC",
+    "LEI DE LICITACOES": "LIC",
+    "MPENHA": "MPENHA",
+    "LEI MARIA DA PENHA": "MPENHA",
+}
+
+
+def canonical_legal_code(value: Any) -> str:
+    normalized = normalize_for_match(value).upper()
+
+    for alias, canonical in CODE_ALIASES.items():
+        if normalized == normalize_for_match(alias).upper():
+            return canonical
+
+    if re.fullmatch(r"[A-Z0-9/-]{2,15}", str(value or "").strip().upper()):
+        return str(value).strip().upper()
+
+    return str(value or "").strip().upper()
+
+
 def recommend_articles(
-    codes: list[str], area: str, max_items: int = 6
+    codes: list[str],
+    area: str,
+    tema: str = "",
+    keywords: Optional[list[str]] = None,
+    max_items: int = 4,
 ) -> list[dict]:
-    codes = [str(code).upper() for code in (codes or [])]
-    area_lower = (area or "").lower()
-    output = []
+    """
+    Recomenda apenas itens com pertinência temática suficiente.
+
+    O código legal isolado vale poucos pontos. Assim, uma menção à CF não faz
+    uma obra penal aparecer em um caso bancário, por exemplo.
+    """
+    document_codes = {
+        canonical_legal_code(code)
+        for code in (codes or [])
+        if canonical_legal_code(code)
+    }
+    document_areas = canonical_area_tags(area)
+    context = " ".join(
+        [tema or "", area or ""] + clean_string_list(keywords, max_items=10)
+    )
+
+    ranked = []
 
     for article in ARTICLE_DB:
-        related_codes = [
-            str(code).upper()
+        article_codes = {
+            canonical_legal_code(code)
             for code in (article.get("codigo_relacionado") or [])
+            if canonical_legal_code(code)
+        }
+
+        article_area_tags = set()
+        for article_area in article.get("area") or []:
+            article_area_tags.update(canonical_area_tags(article_area))
+
+        matched_terms = [
+            term
+            for term in (article.get("palavras_chave") or [])
+            if contains_normalized_term(context, term)
         ]
-        article_areas = article.get("area") or []
 
-        ok_code = any(code in related_codes for code in codes) if codes else False
-        ok_area = any(
-            area_part.lower() in area_lower or area_lower in area_part.lower()
-            for area_part in article_areas
-            if area_lower
+        if article.get("requer_palavra_chave") and not matched_terms:
+            continue
+
+        score = 0
+
+        if document_areas.intersection(article_area_tags):
+            score += 6
+
+        code_matches = document_codes.intersection(article_codes)
+        score += min(len(code_matches), 2)
+
+        score += min(len(matched_terms) * 3, 9)
+
+        if score < 4:
+            continue
+
+        ranked.append((score, len(matched_terms), article))
+
+    ranked.sort(
+        key=lambda item: (
+            -item[0],
+            -item[1],
+            (item[2].get("titulo") or "").casefold(),
         )
+    )
 
-        if ok_code or ok_area:
-            output.append(article)
-
-    if not output:
-        for article in ARTICLE_DB:
-            if any(
-                code in (article.get("codigo_relacionado") or [])
-                for code in ["CF", "CPC", "CPP"]
-            ):
-                output.append(article)
-
-    seen = set()
     unique = []
+    seen = set()
 
-    for article in output:
-        key = (article.get("titulo") or "").strip().lower()
+    for _, _, article in ranked:
+        key = (article.get("titulo") or "").strip().casefold()
         if key and key not in seen:
             seen.add(key)
             unique.append(article)
@@ -841,75 +1065,112 @@ def recommend_articles(
     return unique
 
 
-def suggest_library_links(text: str, max_items: int = 7) -> list[dict]:
-    t = (text or "").lower()
-    output = []
+def suggest_library_links(
+    codes: list[str],
+    text: str,
+    tribunal: str = "",
+    fundamentos_juris: Optional[list[str]] = None,
+    include_glossary: bool = False,
+    max_items: int = 7,
+) -> list[dict]:
+    """
+    Sugere somente fontes diretamente relacionadas aos diplomas identificados.
 
-    # Regras explícitas melhoram a indicação dos principais diplomas.
-    keyword_map = {
-        "CF_HTML": [
-            "constituição federal",
-            "constituição da república",
-            "cf/88",
-            "cf 88",
-        ],
-        "CC": ["código civil", "lei 10.406", "lei nº 10.406"],
-        "CPC": [
-            "código de processo civil",
-            "código de processo civil",
-            "lei 13.105",
-            "lei nº 13.105",
-            "cpc",
-        ],
-        "CP": ["código penal", "decreto-lei 2.848", "cp"],
-        "CPP": [
-            "código de processo penal",
-            "decreto-lei 3.689",
-            "cpp",
-        ],
-        "CLT": ["clt", "consolidação das leis do trabalho"],
-        "CDC": ["código de defesa do consumidor", "cdc", "lei 8.078"],
-        "CTN": ["código tributário nacional", "ctn", "lei 5.172"],
-        "LIC": ["lei 14.133", "lei de licitações"],
-        "LIA": ["lei de improbidade", "lei 8.429"],
-        "ECA": ["estatuto da criança", "eca", "lei 8.069"],
-        "MPENHA": ["lei maria da penha", "lei 11.340"],
+    Cursos gerais permanecem na página Biblioteca, mas não são exibidos
+    automaticamente em todo resultado.
+    """
+    code_to_key = {
+        "CF": "CF_HTML",
+        "CC": "CC",
+        "CPC": "CPC",
+        "CP": "CP",
+        "CPP": "CPP",
+        "CLT": "CLT",
+        "CDC": "CDC",
+        "CTN": "CTN",
+        "LIC": "LIC",
+        "LIA": "LIA",
+        "ECA": "ECA",
+        "MPENHA": "MPENHA",
     }
 
-    for link in LIBRARY_LINKS:
-        key = link["key"]
-        explicit_keywords = keyword_map.get(key, [])
+    detected_codes = []
+    seen_codes = set()
 
-        if explicit_keywords and any(keyword in t for keyword in explicit_keywords):
-            output.append(link)
-            continue
+    for code in codes or []:
+        canonical = canonical_legal_code(code)
+        if canonical in code_to_key and canonical not in seen_codes:
+            seen_codes.add(canonical)
+            detected_codes.append(canonical)
 
-        # Mantém a lógica anterior como apoio para itens sem mapa explícito.
-        title_keywords = link["titulo"].split()
-        matches = sum(
-            1
-            for keyword in title_keywords
-            if len(keyword) > 3 and keyword.lower() in t
-        )
-        if matches >= 1:
-            output.append(link)
+    exact_patterns = {
+        "CF": [
+            r"\bconstitui[cç][aã]o federal\b",
+            r"\bconstitui[cç][aã]o da rep[uú]blica\b",
+            r"\bcf\s*/?\s*88\b",
+        ],
+        "CC": [r"\bc[oó]digo civil\b", r"\blei\s*(?:n[º°.]?\s*)?10\.?406\b"],
+        "CPC": [
+            r"\bc[oó]digo de processo civil\b",
+            r"\blei\s*(?:n[º°.]?\s*)?13\.?105\b",
+            r"\bcpc\b",
+        ],
+        "CP": [r"\bc[oó]digo penal\b", r"\bdecreto-lei\s*2\.?848\b"],
+        "CPP": [
+            r"\bc[oó]digo de processo penal\b",
+            r"\bdecreto-lei\s*3\.?689\b",
+            r"\bcpp\b",
+        ],
+        "CLT": [r"\bclt\b", r"\bconsolida[cç][aã]o das leis do trabalho\b"],
+        "CDC": [
+            r"\bc[oó]digo de defesa do consumidor\b",
+            r"\blei\s*(?:n[º°.]?\s*)?8\.?078\b",
+            r"\bcdc\b",
+        ],
+        "CTN": [r"\bc[oó]digo tribut[aá]rio nacional\b", r"\bctn\b"],
+        "LIC": [r"\blei\s*(?:n[º°.]?\s*)?14\.?133\b", r"\blei de licita[cç][oõ]es\b"],
+        "LIA": [r"\blei de improbidade\b", r"\blei\s*(?:n[º°.]?\s*)?8\.?429\b"],
+        "ECA": [r"\bestatuto da crian[cç]a e do adolescente\b", r"\beca\b"],
+        "MPENHA": [r"\blei maria da penha\b", r"\blei\s*(?:n[º°.]?\s*)?11\.?340\b"],
+    }
 
-    if not output:
-        output = [
-            link
-            for link in LIBRARY_LINKS
-            if link["key"] in ["CF_HTML", "CPC", "STF_GLOSS"]
-        ]
+    if not detected_codes:
+        for code, patterns in exact_patterns.items():
+            if any(re.search(pattern, text or "", flags=re.IGNORECASE) for pattern in patterns):
+                detected_codes.append(code)
 
-    seen = set()
+    links_by_key = {link["key"]: link for link in LIBRARY_LINKS}
+    output = []
+
+    for code in detected_codes:
+        key = code_to_key.get(code)
+        if key and key in links_by_key:
+            output.append(links_by_key[key])
+
+    jurisprudence_text = " ".join(fundamentos_juris or [])
+    court_context = f"{tribunal} {jurisprudence_text}".upper()
+
+    if "STJ" in court_context and "STJ_JURIS" in links_by_key:
+        output.append(links_by_key["STJ_JURIS"])
+
+    if "STF" in court_context and "STF_JURIS" in links_by_key:
+        output.append(links_by_key["STF_JURIS"])
+
+    if include_glossary and "STF_GLOSS" in links_by_key:
+        output.append(links_by_key["STF_GLOSS"])
+
     unique_output = []
+    seen = set()
 
     for item in output:
         if item["key"] not in seen:
-            unique_output.append(item)
             seen.add(item["key"])
+            unique_output.append(item)
 
-    return unique_output[:max_items]
+        if len(unique_output) >= max_items:
+            break
+
+    return unique_output
 
 
 def build_search_queries(
@@ -968,9 +1229,22 @@ def build_output(text: str) -> dict:
     tribunal = dados_ia["tribunal"]
 
     # Cruzamento com a base estática do Lumen.
-    artigos = recommend_articles(codigos, area, max_items=6)
-    sugestoes = suggest_library_links(texto_limpo)
     termos_importantes = extract_terms_translation(texto_limpo)
+    artigos = recommend_articles(
+        codigos,
+        area,
+        tema=dados_ia["tema_principal"],
+        keywords=keywords,
+        max_items=4,
+    )
+    sugestoes = suggest_library_links(
+        codigos,
+        texto_limpo,
+        tribunal=tribunal,
+        fundamentos_juris=dados_ia["fundamentos_juris"],
+        include_glossary=bool(termos_importantes),
+        max_items=7,
+    )
     pesquisas = build_search_queries(pergunta, keywords, tribunal)
 
     alert_message = ""
