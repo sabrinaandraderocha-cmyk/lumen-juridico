@@ -4,9 +4,12 @@
 {% block content %}
 
   <section class="hero" style="padding-bottom: 20px;">
-    <h1>Análise Concluída</h1>
+    <h1>Análise estruturada concluída</h1>
     <p class="muted">
-      Processado em {{ now.strftime("%d/%m/%Y às %H:%M") }} • ID da Análise: <strong>{{ analise_id }}</strong>
+      Processado em {{ now.strftime("%d/%m/%Y às %H:%M") }}
+      {% if analise_id %}
+        • ID da análise: <strong>{{ analise_id }}</strong>
+      {% endif %}
     </p>
 
     <div class="actions" style="margin-top:20px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
@@ -29,6 +32,14 @@
         <strong>⚠️ Atenção:</strong> {{ out.alerta }}
       </div>
     {% endif %}
+
+    <div class="card ai-notice" style="margin-top:16px; border-left:4px solid #2563eb; background:#eff6ff; color:#1e3a8a; padding:15px; text-align:left;">
+      <strong>💡 Leitura assistida por inteligência artificial</strong>
+      <p style="margin:6px 0 0 0; line-height:1.55; font-size:0.92rem;">
+        Esta análise organiza elementos identificados no documento e pode conter omissões ou imprecisões.
+        Confira sempre o texto original e as fontes jurídicas oficiais antes de utilizar as informações.
+      </p>
+    </div>
   </section>
 
   <div style="max-width: 900px; margin: 0 auto;">
@@ -45,7 +56,7 @@
       {% if out.area_sugerida or out.codigos_relacionados %}
         <p class="muted" style="margin: 0 0 14px 0; font-size: 0.9rem;">
           {% if out.area_sugerida %}
-            <strong>Área sugerida:</strong> {{ out.area_sugerida }}
+            <strong>Área identificada:</strong> {{ out.area_sugerida }}
           {% endif %}
           {% if out.area_sugerida and out.codigos_relacionados %} • {% endif %}
           {% if out.codigos_relacionados %}
@@ -59,7 +70,7 @@
         <div class="syn-box">
           <div class="syn-head">
             <span class="syn-badge">Resumo</span>
-            <span class="syn-title">Síntese dos Fatos</span>
+            <span class="syn-title">Síntese dos fatos identificados</span>
           </div>
           <p class="syn-text">{{ out.sintaxe_caso.fatos_relevantes }}</p>
         </div>
@@ -89,13 +100,13 @@
     {% if out.sintaxe_caso %}
       <section class="card shadow-sm" style="margin-bottom: 20px; border-left: 4px solid #22c55e;">
         <h2 style="color: #166534; display: flex; align-items: center; gap: 8px;">
-          🧠 Elementos da Decisão / Controvérsia
+          🧠 Elementos centrais do documento
         </h2>
 
         <div style="display:grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px;">
           {% if out.sintaxe_caso.controversia %}
             <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:12px; border-radius:8px;">
-              <strong style="color:#166534;">Controvérsia Principal</strong>
+              <strong style="color:#166534;">Questão jurídica central</strong>
               <p style="margin:8px 0 0 0; color:#14532d; line-height:1.55;">
                 {{ out.sintaxe_caso.controversia }}
               </p>
@@ -104,7 +115,7 @@
 
           {% if out.sintaxe_caso.resultado_dispositivo %}
             <div style="background:#ecfeff; border:1px solid #a5f3fc; padding:12px; border-radius:8px;">
-              <strong style="color:#0e7490;">📍 Resultado / Pedido Final (Dispositivo)</strong>
+              <strong style="color:#0e7490;">📍 Resultado, dispositivo ou pedido identificado</strong>
               <p style="margin:8px 0 0 0; color:#155e75; line-height:1.55;">
                 {{ out.sintaxe_caso.resultado_dispositivo }}
               </p>
@@ -118,7 +129,7 @@
 
       <section class="card shadow-sm">
         <h2 style="color: #059669; display: flex; align-items: center; gap: 8px;">
-          ⚖️ Fundamentação Legal
+          ⚖️ Fundamentos normativos identificados
         </h2>
 
         {% if out.fundamentos_normas %}
@@ -130,12 +141,12 @@
             {% endfor %}
           </ul>
         {% else %}
-          <p class="muted">Nenhuma norma específica destacada.</p>
+          <p class="muted">Nenhuma norma expressamente identificada no documento.</p>
         {% endif %}
 
         {% if out.fundamentos_juris %}
           <div style="margin-top:12px; background:#ecfdf5; border:1px solid #bbf7d0; padding:12px; border-radius:8px;">
-            <strong style="color:#047857;">📚 Referências de jurisprudência</strong>
+            <strong style="color:#047857;">📚 Referências jurisprudenciais identificadas</strong>
             <ul style="margin-top: 8px; padding-left: 18px; font-size: 0.9rem; color:#065f46;">
               {% for j in out.fundamentos_juris %}
                 <li style="margin-bottom: 6px;">{{ j }}</li>
@@ -147,7 +158,7 @@
 
       <section class="card shadow-sm">
         <h2 style="color: #7c3aed; display: flex; align-items: center; gap: 8px;">
-          🔎 Estratégia de Pesquisa
+          🔎 Pesquisa orientada
         </h2>
 
         {% if out.keywords %}
@@ -162,7 +173,7 @@
 
         {% if out.queries_juris %}
           <div style="background: #f5f3ff; padding: 12px; border-radius: 8px; border: 1px solid #ddd6fe;">
-            <strong style="color: #5b21b6; font-size: 0.9rem;">Consultas sugeridas (Copie e cole)</strong>
+            <strong style="color: #5b21b6; font-size: 0.9rem;">Consultas sugeridas para aprofundamento</strong>
             <ul style="margin-top: 8px; padding-left: 18px; font-size: 0.85rem; color: #4c1d95;">
               {% for q in out.queries_juris %}
                 <li style="margin-bottom: 6px;"><code>{{ q }}</code></li>
@@ -177,9 +188,9 @@
 
       <section class="card shadow-sm">
         <h2 style="color: #ea580c; display: flex; align-items: center; gap: 8px;">
-          ✅ Checklist de Ação
+          ✅ Roteiro de conferência
         </h2>
-        <p class="muted" style="font-size: 0.85rem; margin-top: 4px;">Focos recomendados para a sua atuação neste caso:</p>
+        <p class="muted" style="font-size: 0.85rem; margin-top: 4px;">Pontos importantes para revisar no documento original:</p>
         
         {% if out.checklist %}
           <ul style="padding-left: 20px; color: #334155; line-height: 1.6; margin-top: 10px;">
@@ -188,7 +199,7 @@
             {% endfor %}
           </ul>
         {% else %}
-          <p class="muted" style="margin-top:10px;">Aguardando processamento de termos específicos.</p>
+          <p class="muted" style="margin-top:10px;">Nenhum ponto adicional de conferência foi gerado.</p>
         {% endif %}
       </section>
 
@@ -209,7 +220,7 @@
           </ul>
 
           <p class="muted" style="margin-top: 10px; font-size: 0.85rem;">
-            Fonte do glossário: <a href="{{ out.glossario_source }}" target="_blank">{{ out.glossario_source }}</a>
+            Referência complementar: <a href="{{ out.glossario_source }}" target="_blank" rel="noopener noreferrer">Glossário Jurídico do STF ↗</a>
           </p>
         {% else %}
           <p class="muted" style="margin-top:10px;">Nenhum termo em latim ou conceito complexo pré-cadastrado detectado.</p>
@@ -221,10 +232,10 @@
     {% if out.artigos_recomendados %}
       <section class="card shadow-sm" style="margin-top: 20px; border-left: 4px solid #a855f7;">
         <h2 style="color:#6d28d9; display:flex; align-items:center; gap:8px;">
-          🧩 Artigos / Doutrina recomendados
+          🧩 Temas e autores para aprofundamento
         </h2>
         <p class="muted" style="margin-top: 6px;">
-          Indicações filtradas pelo tema, área e códigos detectados no texto.
+          Sugestões temáticas selecionadas pela pertinência com a área, o assunto e os diplomas identificados. Consulte a obra original e a edição adequada antes de citar.
         </p>
 
         <div style="display:grid; grid-template-columns: 1fr; gap: 12px; margin-top: 10px;">
@@ -238,10 +249,10 @@
                 {% if a.ano %} • <strong>Ano:</strong> {{ a.ano }}{% endif %}
               </div>
               <div style="margin-top:6px; color:#6b7280; font-size:0.9rem; line-height:1.45;">
-                <strong>De onde é:</strong> {{ a.onde or "—" }}
+                <strong>Referência / área:</strong> {{ a.onde or "—" }}
               </div>
               <div style="margin-top:6px; color:#374151; font-size:0.9rem;">
-                <strong>Código relacionado:</strong>
+                <strong>Diplomas relacionados:</strong>
                 {% if a.codigo_relacionado %}
                   {{ a.codigo_relacionado|join(", ") }}
                 {% else %}
@@ -264,7 +275,10 @@
 
     {% if out.sugestoes %}
       <section class="card shadow-sm" style="margin-top: 20px; background: #f8fafc;">
-        <h3 style="font-size: 1rem; color: #475569; margin-bottom: 12px;">🔗 Atalhos da Biblioteca</h3>
+        <h3 style="font-size: 1rem; color: #475569; margin-bottom: 8px;">🔗 Fontes oficiais e atalhos relacionados</h3>
+        <p class="muted" style="font-size:0.85rem; margin:0 0 12px 0; line-height:1.5;">
+          Links selecionados a partir dos diplomas e referências identificados. Use-os para conferir o texto legal e aprofundar a pesquisa.
+        </p>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           {% for item in out.sugestoes %}
             <a href="{{ item.url }}" target="_blank"
@@ -325,7 +339,7 @@
       const artigosTxt = 
         (artigos && artigos.length)
           ? artigos.map(a => 
-              `• ${a.titulo}\n  - Autor(es): ${a.autores || '—'}\n  - De onde é: ${a.onde || '—'}`
+              `• ${a.titulo}\n  - Autor(es): ${a.autores || '—'}\n  - Referência / área: ${a.onde || '—'}`
             ).join("\n\n")
           : "—";
 
@@ -333,26 +347,74 @@
         `LUMEN JURÍDICO - RELATÓRIO TÉCNICO\n` +
         `====================================\n\n` +
         `TEMA PRINCIPAL: ${tema}\n` +
-        (area ? `ÁREA SUGERIDA: ${area}\n` : "") +
+        (area ? `ÁREA IDENTIFICADA: ${area}\n` : "") +
         (codigos && codigos.length ? `CÓDIGOS RELACIONADOS: ${codigos.join(', ')}\n` : "") +
         `\nDADOS DO CASO:\n${metaTxt}\n\n` +
         `ANÁLISE DO CASO:\n${sintaxeTxt}\n\n` +
-        `FUNDAMENTAÇÃO LEGAL:\n${normas.map(n => '• ' + n).join('\n') || '—'}\n\n` +
-        `JURISPRUDÊNCIA / REFERÊNCIAS:\n${juris.map(j => '• ' + j).join('\n') || '—'}\n\n` +
-        `CHECKLIST PRÁTICO:\n${checklist.map(c => '[ ] ' + c).join('\n') || '—'}\n\n` +
-        `DOUTRINA RECOMENDADA:\n${artigosTxt}`;
+        `FUNDAMENTOS NORMATIVOS IDENTIFICADOS:\n${normas.map(n => '• ' + n).join('\n') || '—'}\n\n` +
+        `REFERÊNCIAS JURISPRUDENCIAIS IDENTIFICADAS:\n${juris.map(j => '• ' + j).join('\n') || '—'}\n\n` +
+        `ROTEIRO DE CONFERÊNCIA:\n${checklist.map(c => '[ ] ' + c).join('\n') || '—'}\n\n` +
+        `TEMAS E AUTORES PARA APROFUNDAMENTO:\n${artigosTxt}`;
 
       copyTextToClipboard(texto).then(() => alert("Relatório completo copiado! 📋"));
     }
   </script>
 
   <style>
+    @page {
+      size: A4;
+      margin: 14mm;
+    }
+
     @media print {
       .hero, .actions, .btn, .nav, footer { display: none !important; }
-      body { background: white; padding: 0; }
-      .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
-      a { color: #111827 !important; text-decoration: none !important; }
-      code { background: transparent !important; }
+
+      html, body {
+        background: #ffffff !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 10.5pt;
+      }
+
+      main, .container {
+        width: 100% !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      .card {
+        box-shadow: none !important;
+        border: 1px solid #cbd5e1 !important;
+        break-inside: avoid-page;
+        page-break-inside: avoid;
+        margin-bottom: 10px !important;
+      }
+
+      h1, h2, h3 {
+        break-after: avoid-page;
+        page-break-after: avoid;
+      }
+
+      .syn-text {
+        display: block !important;
+        max-height: none !important;
+        overflow: visible !important;
+        white-space: normal !important;
+        -webkit-line-clamp: unset !important;
+        -webkit-box-orient: initial !important;
+      }
+
+      a {
+        color: #111827 !important;
+        text-decoration: none !important;
+      }
+
+      code {
+        background: transparent !important;
+        white-space: normal !important;
+        overflow-wrap: anywhere;
+      }
     }
     .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .btn:hover { opacity: 0.9; transform: translateY(-1px); }
@@ -386,10 +448,17 @@
       color:#334155;
     }
     .syn-text{
+      display:block;
       margin:0;
       line-height:1.65;
       color:#334155;
       font-size:0.95rem;
+      max-height:none;
+      overflow:visible;
+      white-space:normal;
+      overflow-wrap:anywhere;
+      -webkit-line-clamp:unset;
+      -webkit-box-orient:initial;
     }
   </style>
 
