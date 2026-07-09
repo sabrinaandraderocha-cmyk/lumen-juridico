@@ -1,7 +1,8 @@
 Flask
-werkzeug
+Werkzeug
 python-dotenv
 pypdf
 python-docx
 Flask-SQLAlchemy
 gunicorn
+google-genai
