@@ -425,10 +425,110 @@ ARTICLE_DB = [
 ]
 
 
+# Descrições temáticas exibidas no resultado.
+# Elas não são apresentadas como referências bibliográficas completas.
+ARTICLE_DESCRIPTIONS = {
+    "Precedentes obrigatórios e segurança jurídica no CPC/2015": (
+        "Aprofunde a força dos precedentes, a identificação da ratio decidendi "
+        "e as técnicas de distinção e superação de entendimentos."
+    ),
+    "O sistema de precedentes no CPC/2015": (
+        "Estude a coerência, a estabilidade e a integridade da jurisprudência, "
+        "bem como a aplicação dos arts. 926 e 927 do CPC."
+    ),
+    "Prisão preventiva e fundamentação": (
+        "Aprofunde os requisitos da prisão cautelar, a necessidade de "
+        "fundamentação concreta e a análise do periculum libertatis."
+    ),
+    "Responsabilidade civil: nexo causal e dano": (
+        "Examine responsabilidade objetiva, nexo causal, dano, fortuito interno "
+        "e os limites da reparação civil."
+    ),
+    "Dever de motivação das decisões judiciais": (
+        "Aprofunde o dever constitucional de fundamentação e os critérios de "
+        "validade argumentativa das decisões judiciais."
+    ),
+    "Tutela de urgência e requisitos": (
+        "Revise probabilidade do direito, perigo de dano, reversibilidade e "
+        "limites da cognição provisória."
+    ),
+    "Vulnerabilidade e proteção do consumidor": (
+        "Aprofunde vulnerabilidade, responsabilidade do fornecedor, serviços "
+        "bancários e distribuição dinâmica do ônus da prova."
+    ),
+}
+
+for _article in ARTICLE_DB:
+    _article["descricao"] = ARTICLE_DESCRIPTIONS.get(
+        _article.get("titulo", ""),
+        "",
+    )
+
+
 
 # ==========================================================
 # Estrutura esperada da resposta da IA
 # ==========================================================
+EVIDENCE_ITEM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "trecho": {
+            "type": "string",
+            "description": (
+                "Trecho literal, curto e contínuo, copiado exatamente do documento, "
+                "sem reticências e sem incluir marcadores de página."
+            ),
+        },
+        "localizacao": {
+            "type": "string",
+            "description": (
+                "Página indicada pelo marcador [PÁGINA N] ou, quando não houver "
+                "paginação, 'Documento sem paginação'."
+            ),
+        },
+    },
+    "required": ["trecho", "localizacao"],
+}
+
+EVIDENCE_BUNDLE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "fatos": {
+            "type": "array",
+            "items": EVIDENCE_ITEM_SCHEMA,
+            "description": "Até dois trechos literais que sustentem a síntese dos fatos.",
+        },
+        "controversia": {
+            "type": "array",
+            "items": EVIDENCE_ITEM_SCHEMA,
+            "description": "Até dois trechos literais relacionados à questão jurídica central.",
+        },
+        "resultado": {
+            "type": "array",
+            "items": EVIDENCE_ITEM_SCHEMA,
+            "description": "Até dois trechos literais que contenham o pedido ou o dispositivo.",
+        },
+        "fundamentos_normativos": {
+            "type": "array",
+            "items": EVIDENCE_ITEM_SCHEMA,
+            "description": "Trechos literais em que apareçam as normas listadas.",
+        },
+        "fundamentos_jurisprudenciais": {
+            "type": "array",
+            "items": EVIDENCE_ITEM_SCHEMA,
+            "description": "Trechos literais em que apareçam súmulas, temas ou precedentes listados.",
+        },
+    },
+    "required": [
+        "fatos",
+        "controversia",
+        "resultado",
+        "fundamentos_normativos",
+        "fundamentos_jurisprudenciais",
+    ],
+}
+
+
 ANALYSIS_SCHEMA = {
     "type": "object",
     "properties": {
@@ -485,6 +585,13 @@ ANALYSIS_SCHEMA = {
             "items": {"type": "string"},
             "description": "Três orientações de leitura e conferência do documento.",
         },
+        "evidencias": {
+            **EVIDENCE_BUNDLE_SCHEMA,
+            "description": (
+                "Trechos literais e curtos do documento que sustentem os principais "
+                "elementos da análise. Não invente nem parafraseie os trechos."
+            ),
+        },
     },
     "required": [
         "tema_principal",
@@ -499,6 +606,7 @@ ANALYSIS_SCHEMA = {
         "codigos_relacionados",
         "palavras_chave",
         "checklist",
+        "evidencias",
     ],
 }
 
@@ -558,6 +666,48 @@ def clean_string_list(value: Any, max_items: Optional[int] = None) -> list[str]:
     return output
 
 
+def clean_raw_evidence_list(
+    value: Any,
+    max_items: int = 5,
+) -> list[dict]:
+    """Sanitiza a estrutura bruta de evidências antes da validação textual."""
+    if not isinstance(value, list):
+        return []
+
+    output = []
+    seen = set()
+
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+
+        quote = clean_string(item.get("trecho"))
+        location = clean_string(item.get("localizacao"))
+
+        quote = re.sub(r"\s+", " ", quote).strip()
+        location = re.sub(r"\s+", " ", location).strip()
+
+        if len(quote) < 12:
+            continue
+
+        key = normalize_for_match(quote)
+        if not key or key in seen:
+            continue
+
+        seen.add(key)
+        output.append(
+            {
+                "trecho": quote,
+                "localizacao": location,
+            }
+        )
+
+        if len(output) >= max_items:
+            break
+
+    return output
+
+
 def parse_json_response(raw_text: str) -> dict:
     """Converte a resposta da IA em dicionário, mesmo se vier com cercas Markdown."""
     raw_text = (raw_text or "").strip()
@@ -600,6 +750,10 @@ def normalize_ai_data(data: dict) -> dict:
     if not isinstance(data, dict) or not data:
         raise ErroAnaliseIA("A análise retornou vazia.")
 
+    raw_evidences = data.get("evidencias")
+    if not isinstance(raw_evidences, dict):
+        raw_evidences = {}
+
     normalized = {
         "tema_principal": clean_string(data.get("tema_principal")),
         "area_direito": clean_string(data.get("area_direito")),
@@ -625,6 +779,30 @@ def normalize_ai_data(data: dict) -> dict:
             data.get("palavras_chave"), max_items=5
         ),
         "checklist": clean_string_list(data.get("checklist"), max_items=3),
+        "evidencias": {
+            "fatos": clean_raw_evidence_list(
+                raw_evidences.get("fatos"),
+                max_items=2,
+            ),
+            "controversia": clean_raw_evidence_list(
+                raw_evidences.get("controversia"),
+                max_items=2,
+            ),
+            "resultado": clean_raw_evidence_list(
+                raw_evidences.get("resultado"),
+                max_items=2,
+            ),
+            "fundamentos_normativos": clean_raw_evidence_list(
+                raw_evidences.get("fundamentos_normativos"),
+                max_items=8,
+            ),
+            "fundamentos_jurisprudenciais": clean_raw_evidence_list(
+                raw_evidences.get(
+                    "fundamentos_jurisprudenciais"
+                ),
+                max_items=8,
+            ),
+        },
     }
 
     # Padroniza as siglas jurídicas sem criar códigos que não vieram da IA.
@@ -793,9 +971,17 @@ REGRAS OBRIGATÓRIAS:
 9. Use linguagem clara, técnica e prudente.
 10. Em "checklist", apresente exatamente três orientações de leitura e conferência
     do documento, e não estratégias processuais ou aconselhamento profissional.
-11. Quando uma informação não puder ser identificada com segurança, diga isso de
+11. Em "evidencias", copie apenas trechos LITERAIS, CONTÍNUOS e CURTOS do
+    documento. Não resuma, não corrija, não complete e não use reticências.
+12. Cada trecho de evidência deve ter, preferencialmente, entre 15 e 60 palavras.
+    Não inclua os marcadores [PÁGINA N] dentro do campo "trecho".
+13. Quando houver marcadores [PÁGINA N], informe a página correspondente em
+    "localizacao". Quando não houver paginação, use "Documento sem paginação".
+14. Se não houver um trecho seguro para determinada categoria de evidência,
+    retorne uma lista vazia. Nunca invente uma citação.
+15. Quando uma informação não puder ser identificada com segurança, diga isso de
     forma explícita, sem preencher a lacuna por suposição.
-12. Retorne somente o objeto JSON solicitado, sem comentários adicionais.
+16. Retorne somente o objeto JSON solicitado, sem comentários adicionais.
 
 <documento>
 {text}
@@ -828,7 +1014,7 @@ def analyze_with_ai(text: str) -> dict:
                 contents=prompt,
                 config=new_genai_types.GenerateContentConfig(
                     temperature=0.1,
-                    max_output_tokens=4096,
+                    max_output_tokens=6144,
                     response_mime_type="application/json",
                     response_schema=ANALYSIS_SCHEMA,
                 ),
@@ -842,7 +1028,7 @@ def analyze_with_ai(text: str) -> dict:
                 prompt,
                 generation_config=legacy_genai.GenerationConfig(
                     temperature=0.1,
-                    max_output_tokens=4096,
+                    max_output_tokens=6144,
                     response_mime_type="application/json",
                 ),
             )
@@ -887,6 +1073,149 @@ def normalize_for_match(value: Any) -> str:
     value = value.casefold()
     value = re.sub(r"[^a-z0-9]+", " ", value)
     return re.sub(r"\s+", " ", value).strip()
+
+
+
+
+PAGE_MARKER_PATTERN = re.compile(
+    r"\[P[ÁA]GINA\s+(\d+)\]\s*",
+    flags=re.IGNORECASE,
+)
+
+
+def split_document_pages(text: str) -> list[tuple[str, str]]:
+    """Separa o texto extraído de PDF pelos marcadores inseridos pelo Lumen."""
+    matches = list(PAGE_MARKER_PATTERN.finditer(text or ""))
+    if not matches:
+        return []
+
+    pages = []
+    for index, match in enumerate(matches):
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        pages.append((match.group(1), text[start:end]))
+
+    return pages
+
+
+def derive_evidence_location(document_text: str, quote: str) -> Optional[str]:
+    """
+    Confere se a citação realmente existe no documento e deriva a página.
+
+    A localização não é aceita apenas porque foi informada pelo modelo.
+    Ela é recalculada a partir do texto original.
+    """
+    normalized_quote = normalize_for_match(quote)
+    if len(normalized_quote) < 12:
+        return None
+
+    pages = split_document_pages(document_text)
+    for page_number, page_text in pages:
+        if normalized_quote in normalize_for_match(page_text):
+            return f"Página {page_number}"
+
+    if normalized_quote in normalize_for_match(document_text):
+        if pages:
+            return "Trecho do documento — página não identificada"
+        return "Documento sem paginação"
+
+    return None
+
+
+def validate_evidence_list(
+    items: Any,
+    document_text: str,
+    max_items: int,
+) -> list[dict]:
+    """Mantém somente citações cuja presença foi confirmada no texto original."""
+    if not isinstance(items, list):
+        return []
+
+    output = []
+    seen = set()
+
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        quote = re.sub(
+            r"\s+",
+            " ",
+            clean_string(item.get("trecho")),
+        ).strip()
+
+        if not quote:
+            continue
+
+        location = derive_evidence_location(document_text, quote)
+        if not location:
+            app.logger.warning(
+                "Evidência descartada porque não foi localizada no documento: %s",
+                quote[:120],
+            )
+            continue
+
+        key = normalize_for_match(quote)
+        if key in seen:
+            continue
+
+        seen.add(key)
+        output.append(
+            {
+                "trecho": quote,
+                "localizacao": location,
+                "verificada": True,
+            }
+        )
+
+        if len(output) >= max_items:
+            break
+
+    return output
+
+
+def validate_evidence_bundle(
+    evidence_data: Any,
+    document_text: str,
+) -> dict:
+    """Valida todas as categorias de evidência e preserva uma estrutura estável."""
+    evidence_data = evidence_data if isinstance(evidence_data, dict) else {}
+
+    return {
+        "fatos": validate_evidence_list(
+            evidence_data.get("fatos"),
+            document_text,
+            max_items=2,
+        ),
+        "controversia": validate_evidence_list(
+            evidence_data.get("controversia"),
+            document_text,
+            max_items=2,
+        ),
+        "resultado": validate_evidence_list(
+            evidence_data.get("resultado"),
+            document_text,
+            max_items=2,
+        ),
+        "fundamentos_normativos": validate_evidence_list(
+            evidence_data.get("fundamentos_normativos"),
+            document_text,
+            max_items=8,
+        ),
+        "fundamentos_jurisprudenciais": validate_evidence_list(
+            evidence_data.get("fundamentos_jurisprudenciais"),
+            document_text,
+            max_items=8,
+        ),
+    }
+
+
+def count_validated_evidences(bundle: dict) -> int:
+    return sum(
+        len(items)
+        for items in (bundle or {}).values()
+        if isinstance(items, list)
+    )
 
 
 def contains_normalized_term(text: str, term: str) -> bool:
@@ -980,6 +1309,94 @@ def canonical_legal_code(value: Any) -> str:
         return str(value).strip().upper()
 
     return str(value or "").strip().upper()
+
+
+CODE_LABELS = {
+    "CF": "Constituição Federal",
+    "CC": "Código Civil (CC)",
+    "CPC": "Código de Processo Civil (CPC)",
+    "CP": "Código Penal (CP)",
+    "CPP": "Código de Processo Penal (CPP)",
+    "CLT": "Consolidação das Leis do Trabalho (CLT)",
+    "CDC": "Código de Defesa do Consumidor (CDC)",
+    "CTN": "Código Tributário Nacional (CTN)",
+    "ECA": "Estatuto da Criança e do Adolescente (ECA)",
+    "LIA": "Lei de Improbidade Administrativa",
+    "LIC": "Lei de Licitações e Contratos Administrativos",
+    "MPENHA": "Lei Maria da Penha",
+}
+
+
+def legal_code_labels(codes: list[str]) -> list[str]:
+    """Expande siglas para rótulos mais precisos, sem chamar a CF de código."""
+    output = []
+    seen = set()
+
+    for code in codes or []:
+        canonical = canonical_legal_code(code)
+        label = CODE_LABELS.get(canonical, canonical)
+
+        if label and label not in seen:
+            seen.add(label)
+            output.append(label)
+
+    return output
+
+
+def normalize_area_label(value: str) -> str:
+    """Padroniza formas frequentes sem alterar o conteúdo jurídico da classificação."""
+    value = re.sub(r"\s+", " ", str(value or "")).strip()
+    if not value:
+        return value
+
+    replacements = [
+        (r"\bDireito Processual Civil\b", "Processo Civil"),
+        (r"\bProcessual Civil\b", "Processo Civil"),
+        (r"\bDireito Processual Penal\b", "Processo Penal"),
+        (r"\bProcessual Penal\b", "Processo Penal"),
+    ]
+
+    for pattern, replacement in replacements:
+        value = re.sub(
+            pattern,
+            replacement,
+            value,
+            flags=re.IGNORECASE,
+        )
+
+    # Corrige capitalização apenas das expressões padronizadas.
+    value = re.sub(r"\bprocesso civil\b", "Processo Civil", value, flags=re.IGNORECASE)
+    value = re.sub(r"\bprocesso penal\b", "Processo Penal", value, flags=re.IGNORECASE)
+
+    return value
+
+
+def smart_title_pt(value: str) -> str:
+    """Converte nomes institucionais em caixa alta para capitalização legível."""
+    value = re.sub(r"\s+", " ", str(value or "")).strip()
+    if not value or not value.isupper():
+        return value
+
+    lower_words = {
+        "a", "ao", "aos", "as", "da", "das", "de", "do", "dos",
+        "e", "em", "na", "nas", "no", "nos", "para", "por",
+    }
+    acronym_words = {
+        "STF", "STJ", "TJMG", "TJSP", "TJRJ", "TRF1", "TRF2",
+        "TRF3", "TRF4", "TRF5", "TRF6", "TST", "TRT", "TRE",
+    }
+
+    words = []
+    for index, word in enumerate(value.split()):
+        clean = re.sub(r"[^A-Z0-9]", "", word)
+        if clean in acronym_words:
+            words.append(word)
+        elif index > 0 and word.casefold() in lower_words:
+            words.append(word.casefold())
+        else:
+            words.append(word.capitalize())
+
+    return " ".join(words)
 
 
 def recommend_articles(
@@ -1222,11 +1639,20 @@ def build_output(text: str) -> dict:
     # Processamento inteligente via LLM.
     dados_ia = analyze_with_ai(texto_limpo)
 
-    area = dados_ia["area_direito"]
+    area = normalize_area_label(dados_ia["area_direito"])
     codigos = dados_ia["codigos_relacionados"]
+    diplomas = legal_code_labels(codigos)
     keywords = dados_ia["palavras_chave"]
     pergunta = dados_ia["controversia"]
-    tribunal = dados_ia["tribunal"]
+    tribunal = smart_title_pt(dados_ia["tribunal"])
+
+    # As evidências só são exibidas depois de uma segunda verificação local:
+    # o trecho precisa existir de fato no texto original.
+    evidencias = validate_evidence_bundle(
+        dados_ia.get("evidencias"),
+        texto_limpo,
+    )
+    total_evidencias = count_validated_evidences(evidencias)
 
     # Cruzamento com a base estática do Lumen.
     termos_importantes = extract_terms_translation(texto_limpo)
@@ -1261,18 +1687,21 @@ def build_output(text: str) -> dict:
         "tema_principal": dados_ia["tema_principal"],
         "area_sugerida": area,
         "codigos_relacionados": codigos,
+        "diplomas_normativos": diplomas,
         "meta": {
             "tribunal": tribunal,
             "tipo_peca_detectado": dados_ia["tipo_peca"],
             "modelo_ia": GEMINI_MODEL,
             "sdk_ia": GENAI_SDK,
             "analise_assistida_por_ia": True,
+            "evidencias_verificadas": total_evidencias,
         },
         "sintaxe_caso": {
             "fatos_relevantes": dados_ia["fatos_relevantes"],
             "controversia": pergunta,
             "resultado_dispositivo": dados_ia["dispositivo_resultado"],
         },
+        "evidencias": evidencias,
         "fundamentos_normas": dados_ia["fundamentos_normativos"],
         "fundamentos_juris": dados_ia["fundamentos_juris"],
         "keywords": keywords,
