@@ -47,6 +47,10 @@
         </button>
       {% endif %}
 
+      <a class="btn secondary" href="{{ url_for('pesquisa_jurisprudencia') }}">
+        📚 Tutorial de Jurisprudência
+      </a>
+
       <a class="btn secondary" href="{{ url_for('home') }}">Nova Análise</a>
       <a class="btn secondary" href="#" onclick="window.print()">🖨️ Imprimir</a>
     </div>
@@ -214,6 +218,24 @@
             </ul>
           </div>
         {% endif %}
+
+        <div style="margin-top:14px; padding:14px; border-radius:10px; background:#fff; border:1px solid #ddd6fe;">
+          <strong style="display:block; color:#5b21b6; margin-bottom:6px;">
+            📚 Como usar estas consultas?
+          </strong>
+          <p class="muted" style="margin:0 0 10px 0; font-size:0.86rem; line-height:1.55;">
+            Aprenda a escolher o tribunal adequado, combinar palavras-chave, aplicar filtros,
+            conferir a ementa e o inteiro teor e avaliar se o precedente realmente se aproxima
+            do caso analisado.
+          </p>
+          <a
+            class="btn secondary"
+            href="{{ url_for('pesquisa_jurisprudencia') }}"
+            style="display:inline-flex; align-items:center; text-decoration:none; font-size:0.86rem;"
+          >
+            Abrir tutorial passo a passo →
+          </a>
+        </div>
       </section>
     </div>
 
