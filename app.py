@@ -286,7 +286,7 @@ LIBRARY_LINKS = [
     },
 ]
 
-# Portais oficiais usados pela página de tutorial.
+# Portais oficiais utilizados pela página de tutorial.
 JURISPRUDENCE_PORTALS = [
     {
         "sigla": "STF",
@@ -306,7 +306,7 @@ JURISPRUDENCE_PORTALS = [
         "sigla": "TJMG",
         "nome": "Tribunal de Justiça de Minas Gerais",
         "descricao": "Consulta oficial de jurisprudência e julgados do TJMG.",
-        "url": "https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/",
+        "url": "https://www5.tjmg.jus.br/jurisprudencia/",
         "cor": "#7c3aed",
     },
     {
@@ -326,7 +326,7 @@ JURISPRUDENCE_PORTALS = [
     {
         "sigla": "BNP",
         "nome": "Banco Nacional de Precedentes — CNJ",
-        "descricao": "Informações e acesso ao sistema de pesquisa de precedentes qualificados.",
+        "descricao": "Informações sobre precedentes qualificados e mecanismos de formação de precedentes.",
         "url": "https://www.cnj.jus.br/tecnologia-da-informacao-e-comunicacao/justica-4-0/banco-nacional-de-precedentes-bnp/",
         "cor": "#0f766e",
     },
@@ -334,7 +334,7 @@ JURISPRUDENCE_PORTALS = [
 
 JURISPRUDENCE_HELP_LINKS = [
     {
-        "titulo": "Portal de jurisprudência e dicas de pesquisa do STF",
+        "titulo": "Portal de jurisprudência do STF",
         "url": "https://portal.stf.jus.br/jurisprudencia/",
     },
     {
@@ -343,10 +343,9 @@ JURISPRUDENCE_HELP_LINKS = [
     },
     {
         "titulo": "Consulta oficial de jurisprudência do TJMG",
-        "url": "https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/",
+        "url": "https://www5.tjmg.jus.br/jurisprudencia/",
     },
 ]
-
 
 TERM_TRANSLATIONS = {
     "habeas corpus": "pedido para proteger a liberdade (contra prisão ilegal/abuso).",
@@ -2093,7 +2092,7 @@ def pesquisa_jurisprudencia():
 
 @app.get("/jurisprudencia")
 def jurisprudencia():
-    """Atalho compatível para a página de pesquisa jurisprudencial."""
+    """Atalho para a página de pesquisa jurisprudencial."""
     return redirect(url_for("pesquisa_jurisprudencia"))
 
 
