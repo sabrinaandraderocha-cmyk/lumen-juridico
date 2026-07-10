@@ -278,7 +278,75 @@ LIBRARY_LINKS = [
         "url": GLOSSARY_URL,
         "tipo": "Ferramenta",
     },
+    {
+        "key": "GUIA_JURIS",
+        "titulo": "Tutorial do Lumen — Como pesquisar jurisprudência",
+        "url": "/pesquisa-jurisprudencia",
+        "tipo": "Guia prático",
+    },
 ]
+
+# Portais oficiais usados pela página de tutorial.
+JURISPRUDENCE_PORTALS = [
+    {
+        "sigla": "STF",
+        "nome": "Supremo Tribunal Federal",
+        "descricao": "Pesquisa de julgados, repercussão geral, súmulas e temas constitucionais.",
+        "url": "https://jurisprudencia.stf.jus.br/pages/search",
+        "cor": "#1d4ed8",
+    },
+    {
+        "sigla": "STJ",
+        "nome": "Superior Tribunal de Justiça",
+        "descricao": "Pesquisa de acórdãos, súmulas, decisões monocráticas e jurisprudência sobre legislação federal.",
+        "url": "https://processo.stj.jus.br/SCON/",
+        "cor": "#047857",
+    },
+    {
+        "sigla": "TJMG",
+        "nome": "Tribunal de Justiça de Minas Gerais",
+        "descricao": "Consulta oficial de jurisprudência e julgados do TJMG.",
+        "url": "https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/",
+        "cor": "#7c3aed",
+    },
+    {
+        "sigla": "TST",
+        "nome": "Tribunal Superior do Trabalho",
+        "descricao": "Jurisprudência trabalhista, súmulas, orientações jurisprudenciais e precedentes.",
+        "url": "https://www.tst.jus.br/jurisprudencia",
+        "cor": "#b45309",
+    },
+    {
+        "sigla": "TSE",
+        "nome": "Tribunal Superior Eleitoral",
+        "descricao": "Pesquisa de jurisprudência eleitoral do TSE e da Justiça Eleitoral.",
+        "url": "https://jurisprudencia.tse.jus.br/",
+        "cor": "#be123c",
+    },
+    {
+        "sigla": "BNP",
+        "nome": "Banco Nacional de Precedentes — CNJ",
+        "descricao": "Informações e acesso ao sistema de pesquisa de precedentes qualificados.",
+        "url": "https://www.cnj.jus.br/tecnologia-da-informacao-e-comunicacao/justica-4-0/banco-nacional-de-precedentes-bnp/",
+        "cor": "#0f766e",
+    },
+]
+
+JURISPRUDENCE_HELP_LINKS = [
+    {
+        "titulo": "Portal de jurisprudência e dicas de pesquisa do STF",
+        "url": "https://portal.stf.jus.br/jurisprudencia/",
+    },
+    {
+        "titulo": "Página oficial de pesquisa de jurisprudência do STJ",
+        "url": "https://www.stj.jus.br/sites/portalp/paginas/Sob-medida/Advogado/Jurisprudencia/Pesquisa-de-Jurisprudencia.aspx",
+    },
+    {
+        "titulo": "Consulta oficial de jurisprudência do TJMG",
+        "url": "https://www.tjmg.jus.br/portal-tjmg/jurisprudencia/consulta-de-jurisprudencia/",
+    },
+]
+
 
 TERM_TRANSLATIONS = {
     "habeas corpus": "pedido para proteger a liberdade (contra prisão ilegal/abuso).",
@@ -2012,6 +2080,21 @@ def biblioteca():
 @app.get("/glossario")
 def glossario():
     return redirect(GLOSSARY_URL)
+
+
+@app.get("/pesquisa-jurisprudencia")
+def pesquisa_jurisprudencia():
+    return render_template(
+        "jurisprudencia.html",
+        portais=JURISPRUDENCE_PORTALS,
+        links_ajuda=JURISPRUDENCE_HELP_LINKS,
+    )
+
+
+@app.get("/jurisprudencia")
+def jurisprudencia():
+    """Atalho compatível para a página de pesquisa jurisprudencial."""
+    return redirect(url_for("pesquisa_jurisprudencia"))
 
 
 @app.get("/sobre")
