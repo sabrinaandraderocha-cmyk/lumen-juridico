@@ -2,8 +2,12 @@ import os
 import json
 import re
 import unicodedata
-from datetime import datetime
+import secrets
+import hmac
+from datetime import datetime, timedelta
+from functools import wraps
 from typing import Any, Optional
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from flask import (
@@ -13,6 +17,9 @@ from flask import (
     redirect,
     url_for,
     flash,
+    session,
+    g,
+    abort,
 )
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
@@ -23,8 +30,16 @@ from docx import Document
 
 # Banco de dados
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, text as sql_text
+from sqlalchemy import inspect, text as sql_text, or_
 from sqlalchemy.exc import SQLAlchemyError
+
+# Autenticação por convite (Supabase)
+SUPABASE_SDK_AVAILABLE = True
+try:
+    from supabase import create_client
+except ImportError:
+    SUPABASE_SDK_AVAILABLE = False
+    create_client = None
 
 # ==========================================================
 # IA Generativa
@@ -69,6 +84,30 @@ app.secret_key = os.getenv("SECRET_KEY", "dev-change-me")
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
 app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.getenv("FLASK_ENV", "production") != "development"
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+
+# Configurações de autenticação
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_PUBLIC_KEY = (
+    os.getenv("SUPABASE_PUBLISHABLE_KEY", "").strip()
+    or os.getenv("SUPABASE_ANON_KEY", "").strip()
+    or os.getenv("SUPABASE_KEY", "").strip()
+)
+SUPABASE_ADMIN_KEY = (
+    os.getenv("SUPABASE_SECRET_KEY", "").strip()
+    or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+)
+APP_URL = os.getenv("APP_URL", "https://lumen-juridico.onrender.com").rstrip("/")
+ADMIN_EMAILS = {
+    email.strip().casefold()
+    for email in re.split(r"[,;\s]+", os.getenv("ADMIN_EMAILS", ""))
+    if email.strip()
+}
+AUTH_ENABLED = bool(SUPABASE_SDK_AVAILABLE and SUPABASE_URL and SUPABASE_PUBLIC_KEY)
+AUTH_ADMIN_ENABLED = bool(AUTH_ENABLED and SUPABASE_ADMIN_KEY)
 
 # Configurações da IA
 GEMINI_API_KEY = (
@@ -116,13 +155,33 @@ class Analise(db.Model):
     titulo_resumo = db.Column(db.String(255))
     texto_original = db.Column(db.Text)
     tipo_peca = db.Column(db.String(100))
+    usuario_id = db.Column(db.String(64), nullable=True, index=True)
+    usuario_email = db.Column(db.String(255), nullable=True, index=True)
 
-    # NOVO: guarda o resultado já gerado.
+    # Guarda o resultado já gerado.
     # Isso evita nova chamada à IA toda vez que uma análise antiga é aberta.
     resultado_json = db.Column(db.Text, nullable=True)
 
     def __repr__(self):
         return f"<Analise {self.id}>"
+
+
+class AuthSession(db.Model):
+    """Sessão de autenticação armazenada no servidor.
+
+    O navegador recebe apenas um identificador aleatório assinado pelo Flask.
+    Os tokens do Supabase permanecem no banco da aplicação.
+    """
+
+    id = db.Column(db.String(64), primary_key=True)
+    usuario_id = db.Column(db.String(64), nullable=False, index=True)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    nome = db.Column(db.String(255), nullable=True)
+    access_token = db.Column(db.Text, nullable=False)
+    refresh_token = db.Column(db.Text, nullable=True)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    ultima_atividade = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    validado_em = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
 
 def ensure_database_schema() -> None:
@@ -140,28 +199,315 @@ def ensure_database_schema() -> None:
 
     columns = {column["name"] for column in inspector.get_columns(table_name)}
 
-    if "resultado_json" not in columns:
+    pending_columns = {
+        "resultado_json": "TEXT",
+        "usuario_id": "VARCHAR(64)",
+        "usuario_email": "VARCHAR(255)",
+    }
+
+    for column_name, column_type in pending_columns.items():
+        if column_name in columns:
+            continue
+
         try:
             db.session.execute(
-                sql_text(f"ALTER TABLE {table_name} ADD COLUMN resultado_json TEXT")
+                sql_text(
+                    f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+                )
             )
             db.session.commit()
-            app.logger.info("Coluna resultado_json criada no banco do Lumen.")
+            app.logger.info("Coluna %s criada no banco do Lumen.", column_name)
         except Exception as error:
             db.session.rollback()
-            # Em servidores com mais de um processo, outro processo pode ter
-            # criado a coluna entre a inspeção e o ALTER TABLE.
             refreshed_columns = {
                 column["name"]
                 for column in inspect(db.engine).get_columns(table_name)
             }
-            if "resultado_json" not in refreshed_columns:
+            if column_name not in refreshed_columns:
                 raise error
 
 
 with app.app_context():
     db.create_all()
     ensure_database_schema()
+
+
+# ==========================================================
+# Autenticação, convite e isolamento por usuário
+# ==========================================================
+def public_supabase_client():
+    if not AUTH_ENABLED:
+        raise RuntimeError("A autenticação do Supabase não está configurada.")
+    return create_client(SUPABASE_URL, SUPABASE_PUBLIC_KEY)
+
+
+def admin_supabase_client():
+    if not AUTH_ADMIN_ENABLED:
+        raise RuntimeError(
+            "A chave administrativa do Supabase não está configurada no servidor."
+        )
+    return create_client(SUPABASE_URL, SUPABASE_ADMIN_KEY)
+
+
+def user_metadata_value(user: Any, key: str, default: str = "") -> str:
+    metadata = getattr(user, "user_metadata", None) or {}
+    if isinstance(metadata, dict):
+        return str(metadata.get(key) or default).strip()
+    return default
+
+
+def normalize_user(user: Any) -> dict:
+    email = str(getattr(user, "email", "") or "").strip()
+    nome = (
+        user_metadata_value(user, "name")
+        or user_metadata_value(user, "nome")
+        or (email.split("@", 1)[0].replace(".", " ").title() if email else "Usuário")
+    )
+    return {
+        "id": str(getattr(user, "id", "") or ""),
+        "email": email,
+        "nome": nome,
+    }
+
+
+def is_admin_email(email: str) -> bool:
+    return bool(email and email.casefold() in ADMIN_EMAILS)
+
+
+def safe_next_url(value: str, default_endpoint: str = "home") -> str:
+    value = str(value or "").strip()
+    if not value:
+        return url_for(default_endpoint)
+
+    parsed = urlparse(value)
+    if parsed.scheme or parsed.netloc or not value.startswith("/") or value.startswith("//"):
+        return url_for(default_endpoint)
+    return value
+
+
+def create_local_auth_session(auth_response: Any) -> dict:
+    auth_session = getattr(auth_response, "session", None)
+    user = getattr(auth_response, "user", None)
+
+    if auth_session is None or user is None:
+        raise RuntimeError("O Supabase não retornou uma sessão válida.")
+
+    user_data = normalize_user(user)
+    if not user_data["id"] or not user_data["email"]:
+        raise RuntimeError("Não foi possível identificar o usuário autenticado.")
+
+    session_id = secrets.token_urlsafe(32)
+    record = AuthSession(
+        id=session_id,
+        usuario_id=user_data["id"],
+        email=user_data["email"],
+        nome=user_data["nome"],
+        access_token=str(getattr(auth_session, "access_token", "") or ""),
+        refresh_token=str(getattr(auth_session, "refresh_token", "") or ""),
+        data_criacao=datetime.utcnow(),
+        ultima_atividade=datetime.utcnow(),
+        validado_em=datetime.utcnow(),
+    )
+
+    if not record.access_token:
+        raise RuntimeError("A sessão autenticada não contém token de acesso.")
+
+    old_id = session.get("auth_session_id")
+    if old_id:
+        old = db.session.get(AuthSession, old_id)
+        if old:
+            db.session.delete(old)
+
+    db.session.add(record)
+    db.session.commit()
+
+    session.clear()
+    session.permanent = True
+    session["auth_session_id"] = session_id
+    return user_data
+
+
+def create_local_auth_session_from_tokens(access_token: str, refresh_token: str) -> dict:
+    client = public_supabase_client()
+    user_response = client.auth.get_user(access_token)
+    user = getattr(user_response, "user", None)
+    if user is None:
+        raise RuntimeError("O link de autenticação é inválido ou expirou.")
+
+    class SessionObject:
+        pass
+
+    class ResponseObject:
+        pass
+
+    auth_session = SessionObject()
+    auth_session.access_token = access_token
+    auth_session.refresh_token = refresh_token
+    response = ResponseObject()
+    response.session = auth_session
+    response.user = user
+    return create_local_auth_session(response)
+
+
+def remove_local_auth_session() -> None:
+    session_id = session.get("auth_session_id")
+    if session_id:
+        record = db.session.get(AuthSession, session_id)
+        if record:
+            db.session.delete(record)
+            db.session.commit()
+    session.clear()
+
+
+def refresh_auth_record(record: AuthSession) -> Optional[dict]:
+    client = public_supabase_client()
+
+    try:
+        response = client.auth.get_user(record.access_token)
+        user = getattr(response, "user", None)
+    except Exception:
+        user = None
+
+    if user is None and record.refresh_token:
+        try:
+            refresh_response = client.auth.refresh_session(record.refresh_token)
+            refreshed_session = getattr(refresh_response, "session", None)
+            user = getattr(refresh_response, "user", None)
+            if refreshed_session is not None:
+                record.access_token = str(
+                    getattr(refreshed_session, "access_token", "") or record.access_token
+                )
+                record.refresh_token = str(
+                    getattr(refreshed_session, "refresh_token", "") or record.refresh_token
+                )
+        except Exception:
+            user = None
+
+    if user is None:
+        return None
+
+    data = normalize_user(user)
+    record.usuario_id = data["id"]
+    record.email = data["email"]
+    record.nome = data["nome"]
+    record.validado_em = datetime.utcnow()
+    record.ultima_atividade = datetime.utcnow()
+    db.session.commit()
+    return data
+
+
+@app.before_request
+def load_current_user():
+    g.current_user = None
+    g.is_admin = False
+
+    session_id = session.get("auth_session_id")
+    if not session_id:
+        return
+
+    record = db.session.get(AuthSession, session_id)
+    if record is None:
+        session.clear()
+        return
+
+    user_data = {
+        "id": record.usuario_id,
+        "email": record.email,
+        "nome": record.nome or record.email,
+    }
+
+    # Revalida periodicamente o token no Supabase sem fazer uma chamada externa
+    # em cada carregamento de página.
+    if datetime.utcnow() - record.validado_em > timedelta(minutes=10):
+        try:
+            user_data = refresh_auth_record(record)
+        except Exception:
+            app.logger.exception("Falha ao revalidar sessão do Supabase")
+            user_data = None
+
+        if user_data is None:
+            remove_local_auth_session()
+            return
+
+    record.ultima_atividade = datetime.utcnow()
+    g.current_user = user_data
+    g.is_admin = is_admin_email(user_data["email"])
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if g.current_user is None:
+            flash("Entre com seu e-mail e senha para acessar o Lumen.", "error")
+            return redirect(url_for("login", next=request.full_path.rstrip("?")))
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if g.current_user is None:
+            flash("Entre para acessar esta área.", "error")
+            return redirect(url_for("login", next=request.path))
+        if not g.is_admin:
+            abort(403)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+def current_user_analysis_query():
+    if g.is_admin:
+        # A conta administrativa vê as análises próprias e as análises antigas,
+        # criadas antes da inclusão do login e ainda sem proprietário.
+        return Analise.query.filter(
+            or_(
+                Analise.usuario_id == g.current_user["id"],
+                Analise.usuario_id.is_(None),
+            )
+        )
+    return Analise.query.filter_by(usuario_id=g.current_user["id"])
+
+
+def can_access_analysis(analysis: Analise) -> bool:
+    if analysis.usuario_id == g.current_user["id"]:
+        return True
+    return bool(g.is_admin and analysis.usuario_id is None)
+
+
+def get_csrf_token() -> str:
+    token = session.get("_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_csrf_token"] = token
+    return token
+
+
+@app.context_processor
+def inject_auth_context():
+    return {
+        "current_user": g.get("current_user"),
+        "is_admin": bool(g.get("is_admin", False)),
+        "csrf_token": get_csrf_token,
+        "auth_enabled": AUTH_ENABLED,
+    }
+
+
+@app.before_request
+def protect_post_requests():
+    if request.method != "POST":
+        return
+
+    supplied = request.headers.get("X-CSRFToken") or request.form.get("_csrf_token")
+    if not supplied and request.is_json:
+        payload = request.get_json(silent=True) or {}
+        supplied = payload.get("_csrf_token")
+
+    expected = session.get("_csrf_token", "")
+    if not supplied or not expected or not hmac.compare_digest(str(supplied), str(expected)):
+        abort(400, description="Falha na validação de segurança do formulário.")
 
 
 # ==========================================================
@@ -1927,17 +2273,265 @@ def deserialize_output(raw_json: Optional[str]) -> Optional[dict]:
 
 
 # ==========================================================
-# Rotas
+# Rotas de autenticação
+# ==========================================================
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if g.current_user is not None:
+        return redirect(url_for("home"))
+
+    next_url = safe_next_url(request.args.get("next") or request.form.get("next"))
+
+    if request.method == "POST":
+        if not AUTH_ENABLED:
+            flash(
+                "A autenticação ainda não foi configurada no servidor.",
+                "error",
+            )
+            return render_template("login.html", next_url=next_url)
+
+        email = (request.form.get("email") or "").strip().lower()
+        password = request.form.get("password") or ""
+
+        if not email or not password:
+            flash("Informe o e-mail e a senha.", "error")
+            return render_template("login.html", next_url=next_url)
+
+        try:
+            response = public_supabase_client().auth.sign_in_with_password(
+                {"email": email, "password": password}
+            )
+            create_local_auth_session(response)
+            flash("Acesso realizado com sucesso.", "success")
+            return redirect(next_url)
+        except Exception:
+            app.logger.exception("Falha de login no Supabase")
+            flash("E-mail ou senha inválidos.", "error")
+
+    return render_template("login.html", next_url=next_url)
+
+
+@app.post("/logout")
+def logout():
+    remove_local_auth_session()
+    flash("Você saiu do Lumen com segurança.", "success")
+    return redirect(url_for("login"))
+
+
+@app.route("/esqueci-minha-senha", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip().lower()
+        if email and AUTH_ENABLED:
+            try:
+                public_supabase_client().auth.reset_password_for_email(
+                    email,
+                    {
+                        "redirect_to": (
+                            f"{APP_URL}/auth/callback?next=/redefinir-senha"
+                        )
+                    },
+                )
+            except Exception:
+                # Resposta propositalmente genérica para não revelar se o e-mail
+                # possui ou não uma conta cadastrada.
+                app.logger.exception("Falha ao solicitar redefinição de senha")
+
+        flash(
+            "Caso exista uma conta vinculada a esse e-mail, você receberá as instruções para redefinir a senha.",
+            "success",
+        )
+        return redirect(url_for("login"))
+
+    return render_template("forgot_password.html")
+
+
+@app.get("/auth/callback")
+def auth_callback():
+    next_url = safe_next_url(request.args.get("next"), default_endpoint="home")
+    return render_template("auth_callback.html", next_url=next_url)
+
+
+@app.post("/auth/session")
+def auth_session_from_callback():
+    payload = request.get_json(silent=True) or {}
+    access_token = str(payload.get("access_token") or "").strip()
+    refresh_token = str(payload.get("refresh_token") or "").strip()
+
+    if not access_token:
+        return {"ok": False, "error": "Token de acesso ausente."}, 400
+
+    try:
+        user = create_local_auth_session_from_tokens(access_token, refresh_token)
+        return {"ok": True, "user": {"email": user["email"], "nome": user["nome"]}}
+    except Exception:
+        app.logger.exception("Falha ao criar sessão a partir do callback")
+        return {
+            "ok": False,
+            "error": "O link é inválido, expirou ou já foi utilizado.",
+        }, 401
+
+
+def update_current_user_password(new_password: str) -> None:
+    record = db.session.get(AuthSession, session.get("auth_session_id"))
+    if record is None:
+        raise RuntimeError("Sessão local não encontrada.")
+
+    client = public_supabase_client()
+    client.auth.set_session(record.access_token, record.refresh_token or "")
+    response = client.auth.update_user({"password": new_password})
+    user = getattr(response, "user", None)
+    if user is not None:
+        data = normalize_user(user)
+        record.nome = data["nome"]
+        record.email = data["email"]
+        record.usuario_id = data["id"]
+        record.validado_em = datetime.utcnow()
+        db.session.commit()
+
+
+@app.route("/definir-senha", methods=["GET", "POST"])
+@login_required
+def define_password():
+    if request.method == "POST":
+        password = request.form.get("password") or ""
+        confirmation = request.form.get("password_confirm") or ""
+
+        if len(password) < 8:
+            flash("A senha deve ter pelo menos 8 caracteres.", "error")
+        elif password != confirmation:
+            flash("As senhas informadas não coincidem.", "error")
+        else:
+            try:
+                update_current_user_password(password)
+                flash("Senha criada com sucesso. Seu acesso ao Lumen está ativo.", "success")
+                return redirect(url_for("home"))
+            except Exception:
+                app.logger.exception("Falha ao definir senha")
+                flash("Não foi possível salvar a nova senha. Solicite um novo convite.", "error")
+
+    return render_template(
+        "set_password.html",
+        page_title="Crie sua senha",
+        page_subtitle="Finalize a ativação do seu convite para acessar o Lumen Jurídico.",
+        button_label="Criar senha e entrar",
+    )
+
+
+@app.route("/redefinir-senha", methods=["GET", "POST"])
+@login_required
+def reset_password():
+    if request.method == "POST":
+        password = request.form.get("password") or ""
+        confirmation = request.form.get("password_confirm") or ""
+
+        if len(password) < 8:
+            flash("A senha deve ter pelo menos 8 caracteres.", "error")
+        elif password != confirmation:
+            flash("As senhas informadas não coincidem.", "error")
+        else:
+            try:
+                update_current_user_password(password)
+                flash("Senha redefinida com sucesso.", "success")
+                return redirect(url_for("home"))
+            except Exception:
+                app.logger.exception("Falha ao redefinir senha")
+                flash("Não foi possível redefinir a senha. Solicite um novo link.", "error")
+
+    return render_template(
+        "set_password.html",
+        page_title="Redefina sua senha",
+        page_subtitle="Escolha uma nova senha segura para continuar utilizando o Lumen.",
+        button_label="Salvar nova senha",
+    )
+
+
+@app.route("/admin/convites", methods=["GET", "POST"])
+@admin_required
+def admin_invites():
+    if request.method == "POST":
+        if not AUTH_ADMIN_ENABLED:
+            flash(
+                "Adicione SUPABASE_SECRET_KEY ou SUPABASE_SERVICE_ROLE_KEY às variáveis do Render.",
+                "error",
+            )
+            return redirect(url_for("admin_invites"))
+
+        nome = re.sub(r"\s+", " ", request.form.get("nome") or "").strip()
+        email = (request.form.get("email") or "").strip().lower()
+
+        if not email or "@" not in email:
+            flash("Informe um e-mail válido.", "error")
+        else:
+            try:
+                options = {
+                    "redirect_to": f"{APP_URL}/auth/callback?next=/definir-senha",
+                    "data": {"name": nome} if nome else {},
+                }
+                admin_supabase_client().auth.admin.invite_user_by_email(
+                    email,
+                    options,
+                )
+                flash(f"Convite enviado para {email}.", "success")
+                return redirect(url_for("admin_invites"))
+            except Exception as error:
+                app.logger.exception("Falha ao enviar convite")
+                message = str(error).lower()
+                if "already" in message or "registered" in message or "exists" in message:
+                    flash("Este e-mail já possui cadastro no Supabase.", "error")
+                else:
+                    flash(
+                        "Não foi possível enviar o convite. Confira a chave administrativa e as configurações de e-mail do Supabase.",
+                        "error",
+                    )
+
+    users = []
+    if AUTH_ADMIN_ENABLED:
+        try:
+            response = admin_supabase_client().auth.admin.list_users(
+                page=1,
+                per_page=1000,
+            )
+            raw_users = getattr(response, "users", None)
+            if raw_users is None and isinstance(response, list):
+                raw_users = response
+            for user in raw_users or []:
+                data = normalize_user(user)
+                users.append(
+                    {
+                        **data,
+                        "criado_em": getattr(user, "created_at", None),
+                        "ultimo_login": getattr(user, "last_sign_in_at", None),
+                    }
+                )
+            users.sort(key=lambda item: item["email"].casefold())
+        except Exception:
+            app.logger.exception("Falha ao listar usuários do Supabase")
+
+    return render_template(
+        "admin_invites.html",
+        users=users,
+        admin_configured=AUTH_ADMIN_ENABLED,
+    )
+
+
+# ==========================================================
+# Rotas do Lumen
 # ==========================================================
 @app.route("/")
+@login_required
 def home():
     historico = (
-        Analise.query.order_by(Analise.data_criacao.desc()).limit(5).all()
+        current_user_analysis_query()
+        .order_by(Analise.data_criacao.desc())
+        .limit(5)
+        .all()
     )
     return render_template("index.html", historico=historico)
 
 
 @app.route("/analisar", methods=["POST"])
+@login_required
 def analisar():
     texto = (request.form.get("texto") or "").strip()
     arquivo = request.files.get("arquivo")
@@ -1981,6 +2575,8 @@ def analisar():
             "tipo_peca_detectado", "Documento jurídico"
         )[:100],
         resultado_json=serialize_output(output),
+        usuario_id=g.current_user["id"],
+        usuario_email=g.current_user["email"],
     )
 
     try:
@@ -2011,13 +2607,16 @@ def analisar():
 
 
 @app.route("/resultado/<int:id>")
+@login_required
 def resultado(id):
-    analise = Analise.query.get_or_404(id)
+    analise = db.session.get(Analise, id)
+    if analise is None:
+        abort(404)
+    if not can_access_analysis(analise):
+        abort(404)
 
-    # Primeiro tenta reutilizar exatamente o resultado salvo.
     output = deserialize_output(analise.resultado_json)
 
-    # Compatibilidade com análises criadas antes desta atualização.
     if output is None:
         try:
             output = build_output(analise.texto_original)
@@ -2033,7 +2632,6 @@ def resultado(id):
         except SQLAlchemyError:
             db.session.rollback()
             app.logger.exception("Erro ao atualizar análise antiga")
-            # Mesmo sem conseguir salvar, ainda exibe o resultado gerado.
 
     return render_template(
         "resultado.html",
@@ -2045,19 +2643,23 @@ def resultado(id):
 
 
 @app.route("/historico")
+@login_required
 def historico():
     page = request.args.get("page", 1, type=int)
-    analises = Analise.query.order_by(
-        Analise.data_criacao.desc()
-    ).paginate(page=page, per_page=10)
+    analises = (
+        current_user_analysis_query()
+        .order_by(Analise.data_criacao.desc())
+        .paginate(page=page, per_page=10)
+    )
     return render_template("historico.html", paginacao=analises)
 
 
-# GET foi mantido temporariamente para não quebrar o template atual.
-# O POST também é aceito, permitindo futura troca por formulário protegido.
-@app.route("/excluir/<int:id>", methods=["GET", "POST"])
+@app.post("/excluir/<int:id>")
+@login_required
 def excluir(id):
-    analise = Analise.query.get_or_404(id)
+    analise = db.session.get(Analise, id)
+    if analise is None or not can_access_analysis(analise):
+        abort(404)
 
     try:
         db.session.delete(analise)
@@ -2068,7 +2670,7 @@ def excluir(id):
         app.logger.exception("Erro ao excluir análise")
         flash("Não foi possível remover a análise.", "error")
 
-    return redirect(url_for("home"))
+    return redirect(url_for("historico"))
 
 
 @app.get("/biblioteca")
@@ -2092,7 +2694,6 @@ def pesquisa_jurisprudencia():
 
 @app.get("/jurisprudencia")
 def jurisprudencia():
-    """Atalho para a página de pesquisa jurisprudencial."""
     return redirect(url_for("pesquisa_jurisprudencia"))
 
 
