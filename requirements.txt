@@ -6,3 +6,4 @@ python-docx
 Flask-SQLAlchemy
 gunicorn
 google-genai
+supabase>=2.10,<3
