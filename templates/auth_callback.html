@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Validando acesso • Lumen Jurídico{% endblock %}
+{% block content %}
+<div style="max-width:560px; margin:60px auto; text-align:center;">
+  <section class="card" style="padding:34px; border:1px solid #dbeafe;">
+    <div style="font-size:2.4rem; margin-bottom:12px;">🔄</div>
+    <h1 style="font-size:1.6rem; color:#0f172a;">Validando seu acesso</h1>
+    <p id="callbackMessage" class="muted" style="line-height:1.6;">Aguarde enquanto o Lumen confirma o link recebido.</p>
+  </section>
+</div>
+
+<script>
+(function(){
+  const message = document.getElementById('callbackMessage');
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(window.location.search);
+  const errorDescription = hash.get('error_description') || query.get('error_description');
+  const accessToken = hash.get('access_token') || query.get('access_token');
+  const refreshToken = hash.get('refresh_token') || query.get('refresh_token') || '';
+  const nextUrl = {{ next_url|tojson }};
+
+  if (errorDescription) {
+    message.textContent = decodeURIComponent(errorDescription.replace(/\+/g, ' '));
+    return;
+  }
+
+  if (!accessToken) {
+    message.textContent = 'O link não contém os dados necessários. Ele pode ter expirado ou já ter sido utilizado.';
+    return;
+  }
+
+  fetch({{ url_for('auth_session_from_callback')|tojson }}, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': {{ csrf_token()|tojson }}
+    },
+    body: JSON.stringify({
+      access_token: accessToken,
+      refresh_token: refreshToken
+    })
+  })
+  .then(async response => {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || 'Não foi possível validar o link.');
+    }
+    window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    window.location.replace(nextUrl);
+  })
+  .catch(error => {
+    message.textContent = error.message;
+  });
+})();
+</script>
+{% endblock %}
