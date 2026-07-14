@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Entrar • Lumen Jurídico{% endblock %}
+{% block content %}
+<div style="max-width:470px; margin:30px auto;">
+  <section class="card" style="padding:28px; border:1px solid #dbeafe; box-shadow:0 12px 30px rgba(15,23,42,.08);">
+    <div style="text-align:center; margin-bottom:24px;">
+      <div style="font-size:2.2rem;">🔐</div>
+      <h1 style="margin:8px 0; color:#0f172a; font-size:1.8rem;">Acesse o Lumen</h1>
+      <p class="muted" style="line-height:1.55;">O acesso é exclusivo para pessoas convidadas.</p>
+    </div>
+
+    {% if not auth_enabled %}
+      <div style="padding:13px; border-radius:8px; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; margin-bottom:18px; font-size:.9rem;">
+        A autenticação ainda não foi configurada no servidor.
+      </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('login', next=next_url) }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+
+      <label for="email" style="display:block; font-weight:700; color:#334155; margin-bottom:7px;">E-mail</label>
+      <input id="email" name="email" type="email" autocomplete="email" required style="width:100%; box-sizing:border-box; padding:12px 13px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; margin-bottom:17px;">
+
+      <label for="password" style="display:block; font-weight:700; color:#334155; margin-bottom:7px;">Senha</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required style="width:100%; box-sizing:border-box; padding:12px 13px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; margin-bottom:20px;">
+
+      <button class="btn primary" type="submit" style="width:100%; justify-content:center; padding:13px; font-size:1rem;">Entrar</button>
+    </form>
+
+    <div style="text-align:center; margin-top:18px;">
+      <a href="{{ url_for('forgot_password') }}" style="color:#2563eb; text-decoration:none; font-weight:600; font-size:.9rem;">Esqueci minha senha</a>
+    </div>
+
+    <div style="margin-top:22px; padding-top:18px; border-top:1px solid #e2e8f0; text-align:center; color:#64748b; font-size:.86rem; line-height:1.5;">
+      Ainda não possui acesso? Solicite um convite à administradora do Lumen.
+    </div>
+  </section>
+</div>
+{% endblock %}
