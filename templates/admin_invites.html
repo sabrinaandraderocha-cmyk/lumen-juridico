@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Convites • Lumen Jurídico{% endblock %}
+{% block content %}
+<div style="max-width:900px; margin:0 auto;">
+  <div style="margin-bottom:24px;">
+    <h1 style="color:#0f172a; margin-bottom:8px;">✉️ Convites de acesso</h1>
+    <p class="muted" style="line-height:1.55;">Envie convites individuais. Não existe cadastro público no Lumen.</p>
+  </div>
+
+  {% if not admin_configured %}
+    <div style="padding:15px; border-radius:9px; background:#fff7ed; border:1px solid #fed7aa; color:#9a3412; margin-bottom:20px;">
+      A chave administrativa ainda não está configurada. Adicione <strong>SUPABASE_SECRET_KEY</strong> ou <strong>SUPABASE_SERVICE_ROLE_KEY</strong> no Render.
+    </div>
+  {% endif %}
+
+  <section class="card" style="border-left:4px solid #2563eb; margin-bottom:28px;">
+    <h2 style="font-size:1.2rem; color:#1e3a8a; margin-top:0;">Enviar novo convite</h2>
+    <form method="post" style="display:grid; grid-template-columns:1fr 1.4fr auto; gap:12px; align-items:end;">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div>
+        <label for="nome" style="display:block; font-weight:700; color:#334155; margin-bottom:7px;">Nome</label>
+        <input id="nome" name="nome" type="text" placeholder="Nome da pessoa" style="width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit;">
+      </div>
+      <div>
+        <label for="email" style="display:block; font-weight:700; color:#334155; margin-bottom:7px;">E-mail</label>
+        <input id="email" name="email" type="email" required placeholder="pessoa@exemplo.com" style="width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid #cbd5e1; border-radius:8px; font:inherit;">
+      </div>
+      <button class="btn primary" type="submit" {% if not admin_configured %}disabled{% endif %} style="padding:12px 16px;">Enviar convite</button>
+    </form>
+  </section>
+
+  <section class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:18px 20px; border-bottom:1px solid #e2e8f0;">
+      <h2 style="font-size:1.15rem; color:#334155; margin:0;">Usuários no Supabase</h2>
+    </div>
+    {% for user in users %}
+      <div style="padding:15px 20px; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; gap:15px; flex-wrap:wrap;">
+        <div>
+          <strong style="color:#0f172a;">{{ user.nome }}</strong>
+          <div style="color:#64748b; font-size:.87rem; margin-top:3px;">{{ user.email }}</div>
+        </div>
+        <span style="font-size:.78rem; color:#475569; background:#f1f5f9; padding:5px 9px; border-radius:999px; align-self:center;">Conta cadastrada</span>
+      </div>
+    {% else %}
+      <div style="padding:28px; text-align:center; color:#64748b;">Nenhum usuário foi listado ou a chave administrativa ainda não está configurada.</div>
+    {% endfor %}
+  </section>
+
+  <style>@media(max-width:760px){form[style*="grid-template-columns"]{grid-template-columns:1fr!important;}}</style>
+</div>
+{% endblock %}
