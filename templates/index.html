@@ -1,202 +1,78 @@
 {% extends "base.html" %}
-
 {% block title %}Analisar • Lumen Jurídico{% endblock %}
-
 {% block content %}
+<section class="hero">
+  <div class="hero-badge"><span class="dot"></span> IA jurídica assistiva • Histórico individual</div>
+  <h1>Lumen Jurídico</h1>
+  <p class="lead">Leitura inteligente de documentos jurídicos: do texto bruto aos elementos que orientam uma análise metódica e verificável.</p>
 
-  <section class="hero">
-    <div class="hero-badge">
-      <span class="dot"></span>
-      IA Jurídica Avançada • Histórico automático
+  <div class="card" style="margin-top:18px; border-left:4px solid #2563eb; text-align:left; background:#f8fafc;">
+    <div style="font-weight:700; color:#1e3a8a; margin-bottom:6px;">Olá, {{ current_user.nome }}.</div>
+    <div style="font-size:.91rem; color:#475569; line-height:1.55;">Suas análises ficam vinculadas à sua conta e não aparecem no histórico de outros usuários.</div>
+  </div>
+
+  <div class="card bg-light" style="margin-top:16px; border-left:4px solid #2563eb; text-align:left;">
+    <h3 style="margin:0 0 10px; font-size:1.08rem; color:#1e3a8a;">O que a IA organiza:</h3>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; font-size:.94em; color:#334155;">
+      <div>🧠 <strong>Síntese:</strong> fatos, questão jurídica e resultado.</div>
+      <div>⚖️ <strong>Fundamentação:</strong> normas e jurisprudência citadas.</div>
+      <div>✅ <strong>Conferência:</strong> pontos para revisar no texto original.</div>
+      <div>📄 <strong>Rastreabilidade:</strong> trechos de origem localizados no documento.</div>
+    </div>
+  </div>
+</section>
+
+<section class="card" style="box-shadow:0 4px 6px -1px rgba(0,0,0,.1); border:1px solid #e2e8f0;">
+  <form method="post" action="{{ url_for('analisar') }}" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <div style="margin-bottom:20px;">
+      <label for="texto" style="font-weight:600; color:#1e293b; display:block; margin-bottom:8px; font-size:1.05rem;">1. Cole o texto do documento</label>
+      <textarea id="texto" name="texto" rows="10" class="form-control" placeholder="Cole aqui a ementa, a petição, o acórdão, a sentença ou outro documento jurídico..."></textarea>
     </div>
 
-    <h1>Lumen Jurídico</h1>
-
-    <p class="lead">
-      Leitura inteligente de decisões judiciais: do texto bruto ao que realmente importa.
-      Cole a decisão abaixo ou envie um arquivo para extrair fatos, teses e fundamentos.
-    </p>
-
-    <div class="card bg-light" style="margin-top:20px; border-left: 4px solid var(--accent, #2563eb); text-align: left;">
-      <h3 style="margin:0 0 10px 0; font-size: 1.1rem; color: #1e3a8a;">O que a IA analisa para você:</h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.95em; color: #334155;">
-        <div>🧠 <strong>Síntese:</strong> Fatos, controvérsia e dispositivo.</div>
-        <div>⚖️ <strong>Fundamentação:</strong> Leis e jurisprudência citadas.</div>
-        <div>✅ <strong>Checklist:</strong> Pontos de atenção para sua peça.</div>
-        <div>🧩 <strong>Doutrina:</strong> Sugestões de artigos e cursos.</div>
-      </div>
-    </div>
-  </section>
-
-  <section class="card" style="box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0;">
-    <form method="post" action="{{ url_for('analisar') }}" enctype="multipart/form-data">
-      
-      <div style="margin-bottom: 20px;">
-        <label for="texto" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 8px; font-size: 1.05rem;">
-          1. Cole o texto do documento
-        </label>
-        <textarea
-          id="texto"
-          name="texto"
-          rows="10"
-          class="form-control"
-          placeholder="Cole aqui a ementa, a petição, o acórdão ou a sentença..."
-        ></textarea>
-      </div>
-
-      <div style="margin-bottom: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
-        <label for="arquivo" style="font-weight: 600; color: #1e293b; display: block; margin-bottom: 8px; font-size: 1.05rem;">
-          2. Ou envie um arquivo (PDF / Word / TXT)
-        </label>
-        <div style="position: relative;">
-          <input
-            id="arquivo"
-            name="arquivo"
-            type="file"
-            accept=".pdf,.docx,.txt"
-            style="width: 100%; padding: 12px; background: #f8fafc; border: 1px dashed #94a3b8; border-radius: 8px; color: #475569; cursor: pointer; transition: all 0.2s;"
-            onmouseover="this.style.borderColor='#3b82f6'; this.style.background='#eff6ff'"
-            onmouseout="this.style.borderColor='#94a3b8'; this.style.background='#f8fafc'"
-          >
-        </div>
-      </div>
-
-      <div class="actions" style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 25px;">
-        <button class="btn primary" type="submit" style="flex: 1; min-width: 220px; justify-content: center; font-size: 1.1rem; padding: 14px;">
-          ✨ Analisar com IA
-        </button>
-
-        <a class="btn secondary" href="{{ url_for('biblioteca') }}" style="display: flex; align-items: center; justify-content: center;">
-          📚 Biblioteca
-        </a>
-
-        <a class="btn secondary" href="{{ url_for('glossario') }}" target="_blank" style="display: flex; align-items: center; justify-content: center;">
-          📖 Glossário
-        </a>
-      </div>
-
-      <p class="muted" style="margin-top: 20px; font-size: 0.85em; text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
-        🛡️ <strong>Privacidade:</strong> O processamento ocorre via conexão segura (API). Seus documentos não alimentam bancos de dados públicos.
-      </p>
-    </form>
-  </section>
-
-  {% if historico %}
-  <section style="margin-top: 50px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-      <h2 style="font-size: 1.4rem; margin: 0; color: #1e293b; display: flex; align-items: center; gap: 8px;">
-        🕒 Últimas Análises
-      </h2>
-      <a href="{{ url_for('historico') }}" style="font-size: 0.95em; font-weight: 600; text-decoration: none; color: var(--accent, #2563eb);">Ver histórico completo &rarr;</a>
+    <div style="margin-bottom:20px; padding-top:20px; border-top:1px solid #e2e8f0;">
+      <label for="arquivo" style="font-weight:600; color:#1e293b; display:block; margin-bottom:8px; font-size:1.05rem;">2. Ou envie um arquivo (PDF / Word / TXT)</label>
+      <input id="arquivo" name="arquivo" type="file" accept=".pdf,.docx,.txt" style="width:100%; padding:12px; background:#f8fafc; border:1px dashed #94a3b8; border-radius:8px; color:#475569; cursor:pointer; box-sizing:border-box;">
     </div>
 
-    <div class="grid-historico" style="display: grid; gap: 12px;">
-      {% for item in historico %}
-      <a href="{{ url_for('resultado', id=item.id) }}" class="card card-historico" style="text-decoration: none; color: inherit; display: block; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0; background: #ffffff;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
+    <div class="actions" style="display:flex; gap:12px; flex-wrap:wrap; margin-top:25px;">
+      <button class="btn primary" type="submit" style="flex:1; min-width:220px; justify-content:center; font-size:1.1rem; padding:14px;">✨ Analisar com IA</button>
+      <a class="btn secondary" href="{{ url_for('biblioteca') }}">📚 Biblioteca</a>
+      <a class="btn secondary" href="{{ url_for('pesquisa_jurisprudencia') }}">🔎 Pesquisar jurisprudência</a>
+    </div>
+
+    <div style="margin-top:20px; padding:13px; border-radius:9px; background:#fffbeb; border:1px solid #fde68a; color:#92400e; font-size:.84rem; line-height:1.55;">
+      🛡️ <strong>Privacidade:</strong> o documento é enviado ao serviço de IA configurado e o texto, juntamente com o resultado, é armazenado no ambiente do Lumen para compor seu histórico. Evite inserir informações desnecessárias, dados sigilosos ou dados pessoais excessivos.
+    </div>
+  </form>
+</section>
+
+{% if historico %}
+<section style="margin-top:50px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:15px; margin-bottom:20px; flex-wrap:wrap;">
+    <h2 style="font-size:1.4rem; margin:0; color:#1e293b;">🕒 Suas últimas análises</h2>
+    <a href="{{ url_for('historico') }}" style="font-size:.95em; font-weight:600; text-decoration:none; color:#2563eb;">Ver histórico completo →</a>
+  </div>
+  <div style="display:grid; gap:12px;">
+    {% for item in historico %}
+      <a href="{{ url_for('resultado', id=item.id) }}" class="card card-historico" style="text-decoration:none; color:inherit; display:block; padding:16px; border-radius:10px; border:1px solid #e2e8f0; background:#fff;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
           <div>
-            <strong style="color: #0f172a; font-size: 1.05rem; display: block; margin-bottom: 6px;">
-              {{ item.titulo_resumo or "Análise Sem Título" }}
-            </strong>
-            <div style="display: flex; gap: 12px; align-items: center;">
-              <span class="muted" style="font-size: 0.85em; display: flex; align-items: center; gap: 4px;">
-                {{ item.data_criacao.strftime('%d/%m às %H:%M') }}
-              </span>
-              
-              {% if item.tipo_peca %}
-              <span style="font-size: 0.7rem; background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 99px; font-weight: 600; border: 1px solid #bae6fd;">
-                {{ item.tipo_peca }}
-              </span>
-              {% endif %}
+            <strong style="color:#0f172a; font-size:1.05rem; display:block; margin-bottom:6px;">{{ item.titulo_resumo or "Análise sem título" }}</strong>
+            <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+              <span class="muted" style="font-size:.85em;">{{ item.data_criacao.strftime('%d/%m às %H:%M') }}</span>
+              {% if item.tipo_peca %}<span style="font-size:.7rem; background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:99px; font-weight:600; border:1px solid #bae6fd;">{{ item.tipo_peca }}</span>{% endif %}
             </div>
           </div>
-          <span style="background: #eff6ff; color: #1d4ed8; padding: 6px 12px; border-radius: 6px; font-size: 0.85em; font-weight: 600; border: 1px solid #bfdbfe;">
-            Abrir &rarr;
-          </span>
+          <span style="background:#eff6ff; color:#1d4ed8; padding:6px 12px; border-radius:6px; font-size:.85em; font-weight:600; border:1px solid #bfdbfe;">Abrir →</span>
         </div>
       </a>
-      {% endfor %}
-    </div>
-  </section>
-  {% endif %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
 
-  <style>
-    .hero {
-      padding: 30px 0 20px;
-      text-align: center;
-    }
-
-    .hero h1 {
-      font-size: 2.5rem;
-      line-height: 1.2;
-      margin: 15px 0;
-      color: #0f172a;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-    }
-
-    .hero .lead {
-      font-size: 1.15rem;
-      color: #475569;
-      margin: 0 auto 30px;
-      max-width: 700px;
-      line-height: 1.6;
-    }
-
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 14px;
-      border-radius: 99px;
-      background: #eff6ff;
-      color: #1d4ed8;
-      font-size: 0.85rem;
-      font-weight: 700;
-      border: 1px solid #bfdbfe;
-    }
-
-    .hero-badge .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #3b82f6;
-      display: inline-block;
-      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-    }
-
-    /* Ajuste do formulário */
-    textarea.form-control {
-      width: 100%;
-      padding: 14px;
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      font-family: inherit;
-      font-size: 1rem;
-      resize: vertical;
-      transition: all 0.2s;
-      background-color: #f8fafc;
-      color: #1e293b;
-    }
-    
-    textarea.form-control:focus {
-      outline: none;
-      border-color: #3b82f6;
-      background-color: #ffffff;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-    }
-
-    /* Card de Histórico Hover */
-    .card-historico {
-      transition: all 0.2s ease;
-    }
-    
-    .card-historico:hover {
-      border-color: #93c5fd !important;
-      background-color: #f8fafc !important;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    }
-  </style>
-
+<style>
+.hero{padding:30px 0 20px;text-align:center}.hero h1{font-size:2.5rem;line-height:1.2;margin:15px 0;color:#0f172a;font-weight:800;letter-spacing:-.5px}.hero .lead{font-size:1.15rem;color:#475569;margin:0 auto 30px;max-width:720px;line-height:1.6}.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:99px;background:#eff6ff;color:#1d4ed8;font-size:.85rem;font-weight:700;border:1px solid #bfdbfe}.hero-badge .dot{width:8px;height:8px;border-radius:50%;background:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,.2)}textarea.form-control{width:100%;padding:14px;border:1px solid #cbd5e1;border-radius:8px;font-family:inherit;font-size:1rem;resize:vertical;background:#f8fafc;color:#1e293b;box-sizing:border-box}textarea.form-control:focus{outline:none;border-color:#3b82f6;background:#fff;box-shadow:0 0 0 3px rgba(59,130,246,.15)}.card-historico{transition:.2s}.card-historico:hover{border-color:#93c5fd!important;background:#f8fafc!important;transform:translateY(-2px);box-shadow:0 4px 6px -1px rgba(0,0,0,.05)}
+</style>
 {% endblock %}
