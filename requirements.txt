@@ -5,5 +5,5 @@ pypdf
 python-docx
 Flask-SQLAlchemy
 gunicorn
-google-genai
+google-genai>=1.30.0
 supabase>=2.10,<3
